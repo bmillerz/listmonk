@@ -1,31 +1,34 @@
 import { renderToStaticMarkup } from '@usewaypoint/email-builder';
+
+import { brandHeadStyle } from './brand';
 import { TEditorConfiguration } from './documents/editor/core';
 
-// --- Brand customisations injected into every rendered visual email's <head> ---
-// Text links use the brand accent (#2F894B). Buttons render as <a> with an inline
-// background-color, so a:not([style*="background"]) leaves their label untouched.
-// ColumnsContainer cells carry `box-sizing:content-box` inline and no class, so the
-// mobile media query targets that marker to stack columns full-width below 600px.
-const BRAND_HEAD =
-  '<head>' +
-  '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-  '<style>' +
-  'a:not([style*="background"]),' +
-  'a:not([style*="background"]):link,' +
-  'a:not([style*="background"]):visited{color:#2F894B !important}' +
-  '@media only screen and (max-width:600px){' +
-  'td[style*="content-box"]{' +
-  'display:block !important;width:100% !important;' +
-  'padding-left:0 !important;padding-right:0 !important;' +
-  'box-sizing:border-box !important}}' +
-  '</style>' +
-  '</head>';
+// Returns the columnsGap of the first ColumnsContainer in the document, used as
+// the vertical spacing between stacked columns on mobile. The exported @media
+// rule is global, so a single gap represents the email (per-block gaps would
+// need a per-block class hook in the column reader). 0 when there are none.
+function getColumnsGap(document: TEditorConfiguration): number {
+  for (const block of Object.values(document ?? {})) {
+    // Loose access: the document is a discriminated union; only ColumnsContainer
+    // carries columnsGap.
+    const b = block as { type?: string; data?: { props?: { columnsGap?: number | null } } };
+    if (b?.type === 'ColumnsContainer' && typeof b.data?.props?.columnsGap === 'number') {
+      return b.data.props.columnsGap;
+    }
+  }
+  return 0;
+}
 
-export function injectBrandHead(html: string): string {
+export function injectBrandHead(html: string, columnGapPx = 0): string {
+  const head =
+    '<head>' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    `<style>${brandHeadStyle(columnGapPx)}</style>` +
+    '</head>';
   // Match <html> with or without attributes (e.g. a future upstream `<html lang>`),
   // and fail loudly rather than silently shipping un-branded email if the tag is
   // ever absent — guards against a quiet regression on upstream rebases.
-  const out = html.replace(/<html[^>]*>/, (tag) => tag + BRAND_HEAD);
+  const out = html.replace(/<html[^>]*>/, (tag) => tag + head);
   if (out === html) {
     throw new Error('injectBrandHead: no <html> tag found in rendered email output');
   }
@@ -36,5 +39,5 @@ export function renderHtmlWithMeta(
   document: TEditorConfiguration,
   options: { rootBlockId: string }
 ): string {
-  return injectBrandHead(renderToStaticMarkup(document, options));
+  return injectBrandHead(renderToStaticMarkup(document, options), getColumnsGap(document));
 }

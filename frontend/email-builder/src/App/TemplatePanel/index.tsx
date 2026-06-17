@@ -4,6 +4,7 @@ import { MonitorOutlined, PhoneIphoneOutlined } from '@mui/icons-material';
 import { Box, Stack, SxProps, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { Reader } from '@usewaypoint/email-builder';
 
+import { BRAND_ACCENT } from '../../brand';
 import EditorBlock from '../../documents/editor/EditorBlock';
 import {
   setSelectedScreenSize,
@@ -53,13 +54,13 @@ export default function TemplatePanel() {
     switch (selectedMainTab) {
       case 'editor':
         return (
-          <Box sx={mainBoxSx}>
+          <Box className="lm-brand-canvas" sx={mainBoxSx}>
             <EditorBlock id="root" />
           </Box>
         );
       case 'preview':
         return (
-          <Box sx={mainBoxSx}>
+          <Box className="lm-brand-canvas" sx={mainBoxSx}>
             <Reader document={document} rootBlockId="root" />
           </Box>
         );
@@ -72,6 +73,10 @@ export default function TemplatePanel() {
 
   return (
     <>
+      {/* Brand accent on text links in the editor/preview canvas, mirroring the
+          email export. Buttons (links with an inline background-color) are
+          excluded. Scoped to the canvas so editor chrome is unaffected. */}
+      <style>{`.lm-brand-canvas a:not([style*="background"]){color:${BRAND_ACCENT} !important}`}</style>
       <Stack
         sx={{
           height: 49,

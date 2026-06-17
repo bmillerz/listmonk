@@ -3,7 +3,7 @@ import React from 'react';
 import { ColumnsContainer as BaseColumnsContainer } from '@usewaypoint/block-columns-container';
 
 import { useCurrentBlockId } from '../../editor/EditorBlock';
-import { setDocument, setSelectedBlockId } from '../../editor/EditorContext';
+import { setDocument, setSelectedBlockId, useSelectedScreenSize } from '../../editor/EditorContext';
 import EditorChildrenIds, { EditorChildrenChange } from '../helpers/EditorChildrenIds';
 
 import ColumnsContainerPropsSchema, { ColumnsContainerProps } from './ColumnsContainerPropsSchema';
@@ -12,6 +12,7 @@ const EMPTY_COLUMNS = [{ childrenIds: [] }, { childrenIds: [] }, { childrenIds: 
 
 export default function ColumnsContainerEditor({ style, props }: ColumnsContainerProps) {
   const currentBlockId = useCurrentBlockId();
+  const selectedScreenSize = useSelectedScreenSize();
 
   const { columns, ...restProps } = props ?? {};
   const columnsValue = columns ?? EMPTY_COLUMNS;
@@ -35,15 +36,45 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
     setSelectedBlockId(blockId);
   };
 
-  return (
-    <BaseColumnsContainer
-      props={restProps}
-      style={style}
-      columns={[
-        <EditorChildrenIds childrenIds={columns?.[0]?.childrenIds} onChange={(change) => updateColumn(0, change)} />,
-        <EditorChildrenIds childrenIds={columns?.[1]?.childrenIds} onChange={(change) => updateColumn(1, change)} />,
-        <EditorChildrenIds childrenIds={columns?.[2]?.childrenIds} onChange={(change) => updateColumn(2, change)} />,
-      ]}
+  const columnEditors = ([0, 1, 2] as const).map((columnIndex) => (
+    <EditorChildrenIds
+      key={columnIndex}
+      childrenIds={columns?.[columnIndex]?.childrenIds}
+      onChange={(change) => updateColumn(columnIndex, change)}
     />
-  );
+  ));
+
+  // On the mobile toggle, mirror the responsive email output by stacking the
+  // columns full-width and in order. Media queries can't drive the editor canvas
+  // (it's a fixed-width container, not the viewport), so we react to the toggle
+  // state directly instead. Real sent emails stack via the @media rule injected
+  // in renderHtmlWithMeta; this keeps the editor preview WYSIWYG with that.
+  if (selectedScreenSize === 'mobile') {
+    const columnsCount = (restProps as { columnsCount?: 2 | 3 | null }).columnsCount ?? 2;
+    const columnsGap = (restProps as { columnsGap?: number | null }).columnsGap ?? 0;
+    const padding = style?.padding;
+    return (
+      <div
+        style={{
+          backgroundColor: style?.backgroundColor ?? undefined,
+          padding: padding
+            ? `${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px`
+            : undefined,
+          // Match the horizontal columnsGap as vertical spacing between the
+          // stacked columns (gap applies only between items, not above/below).
+          display: 'flex',
+          flexDirection: 'column',
+          gap: columnsGap,
+        }}
+      >
+        {columnEditors.slice(0, columnsCount).map((editor, index) => (
+          <div key={index} style={{ width: '100%' }}>
+            {editor}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <BaseColumnsContainer props={restProps} style={style} columns={columnEditors} />;
 }
