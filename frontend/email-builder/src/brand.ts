@@ -28,6 +28,9 @@ export function brandHeadStyle(columnGapPx = 0): string {
     `@media only screen and (max-width:${MOBILE_BREAKPOINT_PX}px){` +
     `td[style*="content-box"]{display:block !important;width:100% !important;` +
     `padding-left:0 !important;padding-right:0 !important;box-sizing:border-box !important}` +
-    `td[style*="content-box"]+td[style*="content-box"]{padding-top:${gap}px !important}}`
+    `td[style*="content-box"]+td[style*="content-box"]{padding-top:${gap}px !important}` +
+    // Drop the EmailLayout backdrop's hard-coded 32px top/bottom framing on
+    // mobile (its inline style is the unique `padding:32px 0` marker).
+    `div[style*="padding:32px 0"]{padding-top:0 !important;padding-bottom:0 !important}}`
   );
 }

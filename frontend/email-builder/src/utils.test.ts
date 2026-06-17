@@ -36,6 +36,11 @@ describe('injectBrandHead', () => {
     expect(out).toContain('padding-top:0px !important');
   });
 
+  it('drops the EmailLayout backdrop vertical framing on mobile', () => {
+    const out = injectBrandHead('<html></html>');
+    expect(out).toContain('div[style*="padding:32px 0"]{padding-top:0 !important;padding-bottom:0 !important}');
+  });
+
   it('handles an <html> tag that carries attributes', () => {
     const out = injectBrandHead('<html lang="en"><body>x</body></html>');
     expect(out.startsWith('<html lang="en"><head>')).toBe(true);
