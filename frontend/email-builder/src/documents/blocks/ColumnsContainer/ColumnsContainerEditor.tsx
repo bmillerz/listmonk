@@ -52,7 +52,13 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
   if (selectedScreenSize === 'mobile') {
     const columnsCount = (restProps as { columnsCount?: 2 | 3 | null }).columnsCount ?? 2;
     const columnsGap = (restProps as { columnsGap?: number | null }).columnsGap ?? 0;
+    const reverse = (restProps as { reverseStackOnMobile?: boolean | null }).reverseStackOnMobile ?? false;
     const padding = style?.padding;
+    // Keyed by stable column index so reversing preserves each drop zone's identity.
+    const order = [0, 1, 2].slice(0, columnsCount);
+    if (reverse) {
+      order.reverse();
+    }
     return (
       <div
         style={{
@@ -67,9 +73,9 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
           gap: columnsGap,
         }}
       >
-        {columnEditors.slice(0, columnsCount).map((editor, index) => (
-          <div key={index} style={{ width: '100%' }}>
-            {editor}
+        {order.map((columnIndex) => (
+          <div key={columnIndex} style={{ width: '100%' }}>
+            {columnEditors[columnIndex]}
           </div>
         ))}
       </div>

@@ -13,6 +13,7 @@ import ColumnsContainerPropsSchema, {
 } from '../../../../documents/blocks/ColumnsContainer/ColumnsContainerPropsSchema';
 
 import BaseSidebarPanel from './helpers/BaseSidebarPanel';
+import BooleanInput from './helpers/inputs/BooleanInput';
 import ColumnWidthsInput from './helpers/inputs/ColumnWidthsInput';
 import RadioGroupInput from './helpers/inputs/RadioGroupInput';
 import SliderInput from './helpers/inputs/SliderInput';
@@ -62,6 +63,13 @@ export default function ColumnsContainerPanel({ data, setData }: ColumnsContaine
         max={80}
         defaultValue={data.props?.columnsGap ?? 0}
         onChange={(columnsGap) => updateData({ ...data, props: { ...data.props, columnsGap } })}
+      />
+      <BooleanInput
+        label="Reverse column order on mobile"
+        defaultValue={data.props?.reverseStackOnMobile ?? false}
+        onChange={(reverseStackOnMobile) =>
+          updateData({ ...data, props: { ...data.props, reverseStackOnMobile } })
+        }
       />
       <RadioGroupInput
         label="Alignment"

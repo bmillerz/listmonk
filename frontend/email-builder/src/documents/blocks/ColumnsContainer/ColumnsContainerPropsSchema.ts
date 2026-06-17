@@ -14,6 +14,8 @@ const ColumnsContainerPropsSchema = z.object({
         z.object({ childrenIds: z.array(z.string()) }),
         z.object({ childrenIds: z.array(z.string()) }),
       ]),
+      // Brand: when set, stacked columns render bottom-to-top on mobile.
+      reverseStackOnMobile: z.boolean().optional().nullable(),
     })
     .optional()
     .nullable(),
