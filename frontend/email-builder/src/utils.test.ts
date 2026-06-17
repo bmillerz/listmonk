@@ -23,4 +23,14 @@ describe('injectBrandHead', () => {
     expect(out).toContain('td[style*="content-box"]');
     expect(out).toContain('display:block !important');
   });
+
+  it('handles an <html> tag that carries attributes', () => {
+    const out = injectBrandHead('<html lang="en"><body>x</body></html>');
+    expect(out.startsWith('<html lang="en"><head>')).toBe(true);
+    expect(out).toContain('color:#2F894B !important');
+  });
+
+  it('throws (rather than silently no-op) when there is no <html> tag', () => {
+    expect(() => injectBrandHead('<body>x</body>')).toThrow(/no <html> tag/);
+  });
 });

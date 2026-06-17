@@ -22,7 +22,14 @@ const BRAND_HEAD =
   '</head>';
 
 export function injectBrandHead(html: string): string {
-  return html.replace('<html>', '<html>' + BRAND_HEAD);
+  // Match <html> with or without attributes (e.g. a future upstream `<html lang>`),
+  // and fail loudly rather than silently shipping un-branded email if the tag is
+  // ever absent — guards against a quiet regression on upstream rebases.
+  const out = html.replace(/<html[^>]*>/, (tag) => tag + BRAND_HEAD);
+  if (out === html) {
+    throw new Error('injectBrandHead: no <html> tag found in rendered email output');
+  }
+  return out;
 }
 
 export function renderHtmlWithMeta(

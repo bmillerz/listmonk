@@ -27,6 +27,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Run email-builder unit tests
+        run: |
+          cd frontend/email-builder
+          yarn install --frozen-lockfile
+          yarn test
+
       - name: Build dist (frontend + email-builder + binary)
         run: make dist
         env:
