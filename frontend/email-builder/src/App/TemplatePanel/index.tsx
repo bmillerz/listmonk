@@ -88,6 +88,11 @@ export default function TemplatePanel() {
           // tab uses the table renderer, so the card is the cell's only child.
           `.lm-brand-canvas .lm-col-fill>.MuiBox-root{flex:1 1 auto;min-height:0}` +
           `.lm-brand-canvas .lm-col-fill>.MuiBox-root>div{height:100%}` +
+          // Preview tab renders the email's table; the cell needs an explicit
+          // height for the card's height:100% to resolve in the browser (matches
+          // brandHeadStyle). Only the Preview tab has tables, so this is inert
+          // for the flex-based Editor tab.
+          `.lm-brand-canvas td[style*="content-box"]{height:100% !important}` +
           `.lm-brand-canvas td[style*="content-box"]>div[style*="background"]:only-child{height:100% !important}`}
       </style>
       <Stack
