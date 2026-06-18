@@ -68,13 +68,13 @@ export function renderIrishWordOfTheWeekHtml(props: IrishWordOfTheWeekProps['pro
     `<div style="margin:0;background-color:#FFFFFF;border:1px solid ${BORDER};border-radius:8px;padding:30px 32px;color:${TEXT}">`,
 
     // Eyebrow
-    `<div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND_ACCENT};margin:0 0 16px">Irish Word of the Week</div>`,
+    `<div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND_ACCENT};margin:0 0 8px">Irish Word of the Week</div>`,
 
     // Headword (the one green accent) + pronunciation
     `<div style="margin:0 0 6px;line-height:1.1">`,
-    `<span style="font-size:38px;font-weight:700;color:${BRAND_ACCENT};letter-spacing:-0.01em">${word}</span>`,
+    `<span style="font-size:24px;font-weight:700;color:${BRAND_ACCENT};letter-spacing:-0.01em">${word}</span>`,
     pronunciation
-      ? `<span style="font-size:18px;font-style:italic;color:${MUTED};margin-left:12px">${pronunciation}</span>`
+      ? `<span style="font-size:15px;font-style:italic;color:${MUTED};margin-left:10px">${pronunciation}</span>`
       : '',
     `</div>`,
 
