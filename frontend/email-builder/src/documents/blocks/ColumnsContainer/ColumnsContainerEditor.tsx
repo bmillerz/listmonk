@@ -1,7 +1,5 @@
 import React from 'react';
 
-import { ColumnsContainer as BaseColumnsContainer } from '@usewaypoint/block-columns-container';
-
 import { useCurrentBlockId } from '../../editor/EditorBlock';
 import { setDocument, setSelectedBlockId, useSelectedScreenSize } from '../../editor/EditorContext';
 import EditorChildrenIds, { EditorChildrenChange } from '../helpers/EditorChildrenIds';
@@ -10,12 +8,38 @@ import ColumnsContainerPropsSchema, { ColumnsContainerProps } from './ColumnsCon
 
 const EMPTY_COLUMNS = [{ childrenIds: [] }, { childrenIds: [] }, { childrenIds: [] }];
 
+const JUSTIFY: Record<string, 'flex-start' | 'center' | 'flex-end'> = {
+  top: 'flex-start',
+  middle: 'center',
+  bottom: 'flex-end',
+};
+
+// The editor canvas renders columns with flexbox rather than the email's table.
+// Reason: in a browser a table cell can't make its child fill to equal height
+// (the percentage-height chain breaks at EmailLayout's min-height), whereas flex
+// items stretch to equal height deterministically. The SENT email keeps the
+// table layout (email clients require it) — both end up showing equal-height
+// cards, which is the WYSIWYG match. Equal-height fill for the single-card
+// pattern is finished by CSS in App/TemplatePanel (.lm-col-fill).
 export default function ColumnsContainerEditor({ style, props }: ColumnsContainerProps) {
   const currentBlockId = useCurrentBlockId();
   const selectedScreenSize = useSelectedScreenSize();
 
   const { columns, ...restProps } = props ?? {};
   const columnsValue = columns ?? EMPTY_COLUMNS;
+
+  const r = restProps as {
+    columnsCount?: 2 | 3 | null;
+    columnsGap?: number | null;
+    fixedWidths?: Array<number | null> | null;
+    contentAlignment?: 'top' | 'middle' | 'bottom' | null;
+    reverseStackOnMobile?: boolean | null;
+  };
+  const columnsCount = r.columnsCount ?? 2;
+  const columnsGap = r.columnsGap ?? 0;
+  const fixedWidths = r.fixedWidths ?? null;
+  const justify = JUSTIFY[r.contentAlignment ?? 'middle'] ?? 'center';
+  const reverse = r.reverseStackOnMobile ?? false;
 
   const updateColumn = (columnIndex: 0 | 1 | 2, { block, blockId, childrenIds }: EditorChildrenChange) => {
     const nColumns = [...columnsValue];
@@ -36,51 +60,59 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
     setSelectedBlockId(blockId);
   };
 
-  const columnEditors = ([0, 1, 2] as const).map((columnIndex) => (
-    <EditorChildrenIds
-      key={columnIndex}
-      childrenIds={columns?.[columnIndex]?.childrenIds}
-      onChange={(change) => updateColumn(columnIndex, change)}
-    />
-  ));
-
-  // On the mobile toggle, mirror the responsive email output by stacking the
-  // columns full-width and in order. Media queries can't drive the editor canvas
-  // (it's a fixed-width container, not the viewport), so we react to the toggle
-  // state directly instead. Real sent emails stack via the @media rule injected
-  // in renderHtmlWithMeta; this keeps the editor preview WYSIWYG with that.
-  if (selectedScreenSize === 'mobile') {
-    const columnsCount = (restProps as { columnsCount?: 2 | 3 | null }).columnsCount ?? 2;
-    const columnsGap = (restProps as { columnsGap?: number | null }).columnsGap ?? 0;
-    const reverse = (restProps as { reverseStackOnMobile?: boolean | null }).reverseStackOnMobile ?? false;
-    const padding = style?.padding;
-    // Keyed by stable column index so reversing preserves each drop zone's identity.
-    const order = [0, 1, 2].slice(0, columnsCount);
-    if (reverse) {
-      order.reverse();
-    }
-    return (
-      <div
-        style={{
-          backgroundColor: style?.backgroundColor ?? undefined,
-          padding: padding
-            ? `${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px`
-            : undefined,
-          // Match the horizontal columnsGap as vertical spacing between the
-          // stacked columns (gap applies only between items, not above/below).
-          display: 'flex',
-          flexDirection: 'column',
-          gap: columnsGap,
-        }}
-      >
-        {order.map((columnIndex) => (
-          <div key={columnIndex} style={{ width: '100%' }}>
-            {columnEditors[columnIndex]}
-          </div>
-        ))}
-      </div>
-    );
+  const isMobile = selectedScreenSize === 'mobile';
+  // Keyed by stable column index so reversing preserves each drop zone's identity.
+  const order = [0, 1, 2].slice(0, columnsCount);
+  if (isMobile && reverse) {
+    order.reverse();
   }
 
-  return <BaseColumnsContainer props={restProps} style={style} columns={columnEditors} />;
+  const padding = style?.padding;
+  return (
+    <div
+      style={{
+        backgroundColor: style?.backgroundColor ?? undefined,
+        padding: padding
+          ? `${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px`
+          : undefined,
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        // On desktop, columnsGap is the horizontal gap; on mobile it becomes the
+        // vertical spacing between stacked columns (gap applies only between items).
+        gap: columnsGap,
+        // Stretch makes desktop columns equal height; harmless when stacked.
+        alignItems: 'stretch',
+      }}
+    >
+      {order.map((columnIndex) => {
+        const i = columnIndex as 0 | 1 | 2;
+        const single = (columns?.[i]?.childrenIds?.length ?? 0) === 1;
+        const width = fixedWidths?.[i] ?? null;
+        const sizing: React.CSSProperties = isMobile
+          ? { width: '100%' }
+          : width
+            ? { flex: `0 0 ${width}px`, minWidth: 0 }
+            : { flex: '1 1 0', minWidth: 0 };
+        return (
+          <div
+            key={columnIndex}
+            // .lm-col-fill marks the single-card pattern; CSS grows the card to
+            // fill the (flex-stretched, equal-height) column.
+            className={single ? 'lm-col-fill' : undefined}
+            style={{
+              ...sizing,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: justify,
+            }}
+          >
+            <EditorChildrenIds
+              childrenIds={columns?.[i]?.childrenIds}
+              onChange={(change) => updateColumn(i, change)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
 }

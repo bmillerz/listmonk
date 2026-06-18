@@ -76,7 +76,16 @@ export default function TemplatePanel() {
       {/* Brand accent on text links in the editor/preview canvas, mirroring the
           email export. Buttons (links with an inline background-color) are
           excluded. Scoped to the canvas so editor chrome is unaffected. */}
-      <style>{`.lm-brand-canvas a:not([style*="background"]){color:${BRAND_ACCENT} !important}`}</style>
+      <style>
+        {`.lm-brand-canvas a:not([style*="background"]){color:${BRAND_ACCENT} !important}` +
+          // Equal-height cards. The Editor tab lays columns out with flexbox (see
+          // ColumnsContainerEditor) so a single-card column (.lm-col-fill) is a
+          // flex column of definite height; grow the card to fill it. The Preview
+          // tab uses the table renderer, so the card is the cell's only child.
+          `.lm-brand-canvas .lm-col-fill>.MuiBox-root{flex:1 1 auto;min-height:0}` +
+          `.lm-brand-canvas .lm-col-fill>.MuiBox-root>div{height:100%}` +
+          `.lm-brand-canvas td[style*="content-box"]>div:only-child{height:100% !important}`}
+      </style>
       <Stack
         sx={{
           height: 49,

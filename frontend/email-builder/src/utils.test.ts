@@ -36,6 +36,11 @@ describe('injectBrandHead', () => {
     expect(out).toContain('padding-top:0px !important');
   });
 
+  it('stretches a lone Container in a column to full cell height (equal cards)', () => {
+    const out = injectBrandHead('<html></html>');
+    expect(out).toContain('td[style*="content-box"]>div:only-child{height:100% !important}');
+  });
+
   it('drops the EmailLayout backdrop vertical framing on mobile', () => {
     const out = injectBrandHead('<html></html>');
     expect(out).toContain('div[style*="padding:32px 0"]{padding-top:0 !important;padding-bottom:0 !important}');

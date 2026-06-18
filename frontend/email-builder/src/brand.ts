@@ -25,6 +25,12 @@ export function brandHeadStyle(columnGapPx = 0): string {
     `a:not([style*="background"]),` +
     `a:not([style*="background"]):link,` +
     `a:not([style*="background"]):visited{color:${BRAND_ACCENT} !important}` +
+    // Equal-height cards: column cells are already equal height (table rows),
+    // so a lone Container in a column filling its cell (height:100%) makes
+    // side-by-side cards match height. Scoped to :only-child so multi-block
+    // columns are untouched.
+    `td[style*="content-box"]{height:100% !important}` +
+    `td[style*="content-box"]>div:only-child{height:100% !important}` +
     `@media only screen and (max-width:${MOBILE_BREAKPOINT_PX}px){` +
     `td[style*="content-box"]{display:block !important;width:100% !important;` +
     `padding-left:0 !important;padding-right:0 !important;box-sizing:border-box !important}` +
