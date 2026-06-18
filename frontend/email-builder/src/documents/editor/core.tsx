@@ -21,6 +21,8 @@ import ContainerEditor from '../blocks/Container/ContainerEditor';
 import ContainerPropsSchema from '../blocks/Container/ContainerPropsSchema';
 import EmailLayoutEditor from '../blocks/EmailLayout/EmailLayoutEditor';
 import EmailLayoutPropsSchema from '../blocks/EmailLayout/EmailLayoutPropsSchema';
+import IrishWordOfTheWeekEditor from '../blocks/IrishWordOfTheWeek/IrishWordOfTheWeekEditor';
+import IrishWordOfTheWeekPropsSchema from '../blocks/IrishWordOfTheWeek/IrishWordOfTheWeekPropsSchema';
 import EditorBlockWrapper from '../blocks/helpers/block-wrappers/EditorBlockWrapper';
 
 const EDITOR_DICTIONARY = buildBlockConfigurationDictionary({
@@ -53,6 +55,14 @@ const EDITOR_DICTIONARY = buildBlockConfigurationDictionary({
     Component: (props) => (
       <EditorBlockWrapper>
         <ColumnsContainerEditor {...props} />
+      </EditorBlockWrapper>
+    ),
+  },
+  IrishWordOfTheWeek: {
+    schema: IrishWordOfTheWeekPropsSchema,
+    Component: (props) => (
+      <EditorBlockWrapper>
+        <IrishWordOfTheWeekEditor {...props} />
       </EditorBlockWrapper>
     ),
   },

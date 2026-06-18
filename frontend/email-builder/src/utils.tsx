@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from '@usewaypoint/email-builder';
 
 import { brandHeadStyle } from './brand';
+import { renderIrishWordOfTheWeekHtml } from './documents/blocks/IrishWordOfTheWeek/renderIrishWordOfTheWeek';
 import { TEditorConfiguration } from './documents/editor/core';
 
 // Returns the columnsGap of the first ColumnsContainer in the document, used as
@@ -17,6 +18,31 @@ function getColumnsGap(document: TEditorConfiguration): number {
     }
   }
   return 0;
+}
+
+// Custom block types are unknown to the npm reader (renderToStaticMarkup throws
+// on an unknown type), so before rendering we replace each with a built-in Html
+// block carrying its rendered HTML. One case per custom block type; the same
+// renderer feeds the editor preview, so editor and email stay identical.
+export function transformCustomBlocks(document: TEditorConfiguration): TEditorConfiguration {
+  const out: TEditorConfiguration = {};
+  for (const [id, block] of Object.entries(document ?? {})) {
+    const b = block as { type?: string; data?: { props?: Record<string, unknown>; style?: unknown } };
+    if (b?.type === 'IrishWordOfTheWeek') {
+      out[id] = {
+        type: 'Html',
+        data: {
+          props: { contents: renderIrishWordOfTheWeekHtml(b.data?.props ?? null) },
+          // Carry the block's outer padding onto the Html block so the sent email
+          // spaces it like every other block (and like the editor preview).
+          style: b.data?.style ?? undefined,
+        },
+      } as TEditorConfiguration[string];
+    } else {
+      out[id] = block;
+    }
+  }
+  return out;
 }
 
 export function injectBrandHead(html: string, columnGapPx = 0): string {
@@ -39,5 +65,9 @@ export function renderHtmlWithMeta(
   document: TEditorConfiguration,
   options: { rootBlockId: string }
 ): string {
-  return injectBrandHead(renderToStaticMarkup(document, options), getColumnsGap(document));
+  // transformCustomBlocks has replaced every custom block with a built-in Html
+  // block, so the result is a valid reader document despite its editor-typed
+  // signature (which now includes custom block types the reader doesn't know).
+  const readerDocument = transformCustomBlocks(document) as Parameters<typeof renderToStaticMarkup>[0];
+  return injectBrandHead(renderToStaticMarkup(readerDocument, options), getColumnsGap(document));
 }

@@ -13,6 +13,7 @@ import {
   useSelectedScreenSize,
 } from '../../documents/editor/EditorContext';
 import ToggleInspectorPanelButton from '../InspectorDrawer/ToggleInspectorPanelButton';
+import { transformCustomBlocks } from '../../utils';
 
 import DownloadJson from './DownloadJson';
 import HtmlPanel from './HtmlPanel';
@@ -61,7 +62,10 @@ export default function TemplatePanel() {
       case 'preview':
         return (
           <Box className="lm-brand-canvas" sx={mainBoxSx}>
-            <Reader document={document} rootBlockId="root" />
+            <Reader
+              document={transformCustomBlocks(document) as React.ComponentProps<typeof Reader>['document']}
+              rootBlockId="root"
+            />
           </Box>
         );
       case 'html':

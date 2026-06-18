@@ -10,6 +10,7 @@ import {
   LibraryAddOutlined,
   NotesOutlined,
   SmartButtonOutlined,
+  TranslateOutlined,
   ViewColumnOutlined,
 } from '@mui/icons-material';
 
@@ -151,6 +152,27 @@ export const BUTTONS: TButtonProps[] = [
       type: 'Container',
       data: {
         style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
+      },
+    }),
+  },
+  {
+    label: 'Irish Word',
+    icon: <TranslateOutlined />,
+    block: () => ({
+      type: 'IrishWordOfTheWeek',
+      data: {
+        style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
+        props: {
+          word: 'yoke',
+          pronunciation: '/jəʊk/',
+          partOfSpeech: 'noun · Hiberno-English',
+          definitions: `**1.** An all-purpose word for "thing" — the name of which you've either forgotten or never knew in the first place.
+> "Don't forget that yoke."
+
+**2.** *(of a person)* Someone you're not especially mad about; a piece of work.
+> "Karen's brother is some yoke!"`,
+          origin: `**Origin.** One of the older bits of Irish slang, first recorded in print in 1894 in *Kerrigan's Quality* by Dubliner Jane Barlow — a 130-year tradition. ☘️`,
+        },
       },
     }),
   },

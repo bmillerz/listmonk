@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BRAND_ACCENT, MOBILE_BREAKPOINT_PX, brandHeadStyle } from './brand';
-import { injectBrandHead } from './utils';
+import { injectBrandHead, renderHtmlWithMeta } from './utils';
 
 describe('injectBrandHead', () => {
   it('injects a <head> immediately after <html>', () => {
@@ -54,6 +54,27 @@ describe('injectBrandHead', () => {
 
   it('throws (rather than silently no-op) when there is no <html> tag', () => {
     expect(() => injectBrandHead('<body>x</body>')).toThrow(/no <html> tag/);
+  });
+});
+
+describe('renderHtmlWithMeta custom blocks', () => {
+  it('renders an IrishWordOfTheWeek block into the email (transformed, no throw)', () => {
+    const doc = {
+      root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: ['w'] } },
+      w: {
+        type: 'IrishWordOfTheWeek',
+        data: {
+          style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
+          props: { word: 'yoke', definitions: '**hi**' },
+        },
+      },
+    } as never;
+    const html = renderHtmlWithMeta(doc, { rootBlockId: 'root' });
+    expect(html).toContain('Irish Word of the Week');
+    expect(html).toContain('yoke');
+    expect(html).toMatch(/<strong[^>]*>hi<\/strong>/);
+    // The block's outer padding must ride through to the sent email.
+    expect(html).toContain('padding:16px 24px 16px 24px');
   });
 });
 
