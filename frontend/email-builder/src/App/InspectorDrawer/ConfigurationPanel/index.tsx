@@ -6,6 +6,7 @@ import { TEditorBlock } from '../../../documents/editor/core';
 import { setDocument, useDocument, useSelectedBlockId } from '../../../documents/editor/EditorContext';
 
 import AvatarSidebarPanel from './input-panels/AvatarSidebarPanel';
+import AvatarSignoffSidebarPanel from './input-panels/AvatarSignoffSidebarPanel';
 import ButtonSidebarPanel from './input-panels/ButtonSidebarPanel';
 import ColumnsContainerSidebarPanel from './input-panels/ColumnsContainerSidebarPanel';
 import ContainerSidebarPanel from './input-panels/ContainerSidebarPanel';
@@ -54,6 +55,10 @@ export default function ConfigurationPanel() {
     case 'IrishWordOfTheWeek':
       return (
         <IrishWordOfTheWeekSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />
+      );
+    case 'AvatarSignoff':
+      return (
+        <AvatarSignoffSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />
       );
     case 'Divider':
       return <DividerSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />;

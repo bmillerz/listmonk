@@ -15,6 +15,8 @@ import {
   buildBlockConfigurationSchema,
 } from '@usewaypoint/document-core';
 
+import AvatarSignoffEditor from '../blocks/AvatarSignoff/AvatarSignoffEditor';
+import AvatarSignoffPropsSchema from '../blocks/AvatarSignoff/AvatarSignoffPropsSchema';
 import ColumnsContainerEditor from '../blocks/ColumnsContainer/ColumnsContainerEditor';
 import ColumnsContainerPropsSchema from '../blocks/ColumnsContainer/ColumnsContainerPropsSchema';
 import ContainerEditor from '../blocks/Container/ContainerEditor';
@@ -63,6 +65,14 @@ const EDITOR_DICTIONARY = buildBlockConfigurationDictionary({
     Component: (props) => (
       <EditorBlockWrapper>
         <IrishWordOfTheWeekEditor {...props} />
+      </EditorBlockWrapper>
+    ),
+  },
+  AvatarSignoff: {
+    schema: AvatarSignoffPropsSchema,
+    Component: (props) => (
+      <EditorBlockWrapper>
+        <AvatarSignoffEditor {...props} />
       </EditorBlockWrapper>
     ),
   },

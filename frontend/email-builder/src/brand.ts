@@ -25,6 +25,9 @@ export function brandHeadStyle(columnGapPx = 0): string {
     `a:not([style*="background"]),` +
     `a:not([style*="background"]):link,` +
     `a:not([style*="background"]):visited{color:${BRAND_ACCENT} !important}` +
+    // All content images get a soft 8px radius. No !important, so an image with
+    // an explicit inline radius (e.g. the avatar signoff's circle) keeps its own.
+    `img{border-radius:8px}` +
     // Equal-height cards: column cells are already equal height (table rows),
     // so a lone Container in a column filling its cell (height:100%) makes
     // side-by-side cards match height. Scoped to :only-child so multi-block

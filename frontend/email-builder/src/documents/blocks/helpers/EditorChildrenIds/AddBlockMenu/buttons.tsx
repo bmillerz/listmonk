@@ -2,6 +2,7 @@ import React from 'react';
 
 import {
   AccountCircleOutlined,
+  BadgeOutlined,
   Crop32Outlined,
   HMobiledataOutlined,
   HorizontalRuleOutlined,
@@ -172,6 +173,22 @@ export const BUTTONS: TButtonProps[] = [
 **2.** *(of a person)* Someone you're not especially mad about; a piece of work.
 > "Karen's brother is some yoke!"`,
           origin: `**Origin.** One of the older bits of Irish slang, first recorded in print in 1894 in *Kerrigan's Quality* by Dubliner Jane Barlow — a 130-year tradition. ☘️`,
+        },
+      },
+    }),
+  },
+  {
+    label: 'Signoff',
+    icon: <BadgeOutlined />,
+    block: () => ({
+      type: 'AvatarSignoff',
+      data: {
+        style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
+        props: {
+          imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png',
+          name: 'Meghan',
+          subtitle: 'Ireland Tips for Travellers',
+          shape: 'circle',
         },
       },
     }),

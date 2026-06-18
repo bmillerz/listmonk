@@ -82,6 +82,9 @@ export default function TemplatePanel() {
           excluded. Scoped to the canvas so editor chrome is unaffected. */}
       <style>
         {`.lm-brand-canvas a:not([style*="background"]){color:${BRAND_ACCENT} !important}` +
+          // All content images get a soft 8px radius (mirrors brandHeadStyle);
+          // images with an explicit inline radius keep their own.
+          `.lm-brand-canvas img{border-radius:8px}` +
           // Equal-height cards. The Editor tab lays columns out with flexbox (see
           // ColumnsContainerEditor) so a single-card column (.lm-col-fill) is a
           // flex column of definite height; grow the card to fill it. The Preview

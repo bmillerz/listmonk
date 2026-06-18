@@ -14,6 +14,10 @@ describe('injectBrandHead', () => {
     expect(out).toContain(`color:${BRAND_ACCENT} !important`);
   });
 
+  it('gives all images an 8px border radius', () => {
+    expect(injectBrandHead('<html></html>')).toContain('img{border-radius:8px}');
+  });
+
   it('excludes buttons (links with an inline background) from the colour rule', () => {
     const out = injectBrandHead('<html></html>');
     expect(out).toContain('a:not([style*="background"])');
@@ -76,6 +80,20 @@ describe('renderHtmlWithMeta custom blocks', () => {
     // The block's outer padding must ride through to the sent email.
     expect(html).toContain('padding:16px 24px 16px 24px');
   });
+
+  it('renders an AvatarSignoff block into the email', () => {
+    const doc = {
+      root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: ['s'] } },
+      s: {
+        type: 'AvatarSignoff',
+        data: { props: { imageUrl: 'https://example.com/a.png', name: 'Ben', subtitle: 'Ireland Tips for Travellers' } },
+      },
+    } as never;
+    const html = renderHtmlWithMeta(doc, { rootBlockId: 'root' });
+    expect(html).toContain('Ben');
+    expect(html).toContain('Ireland Tips for Travellers');
+    expect(html).toContain('src="https://example.com/a.png"');
+  });
 });
 
 describe('renderHtmlWithMeta column reversal', () => {
@@ -106,6 +124,28 @@ describe('renderHtmlWithMeta column reversal', () => {
   it('does not tag a column table when reverse is off', () => {
     const html = renderHtmlWithMeta(makeDoc(false), { rootBlockId: 'root' });
     expect(html).not.toContain('<table class="lm-rev"');
+  });
+});
+
+describe('renderHtmlWithMeta preview text', () => {
+  it('injects a hidden preheader when the EmailLayout has preview text', () => {
+    const doc = {
+      root: {
+        type: 'EmailLayout',
+        data: { backdropColor: '#FFF', canvasColor: '#FFF', previewText: 'A sneak peek', childrenIds: [] },
+      },
+    } as never;
+    const html = renderHtmlWithMeta(doc, { rootBlockId: 'root' });
+    expect(html).toContain('A sneak peek');
+    expect(html).toContain('display:none');
+  });
+
+  it('adds no preheader when preview text is empty', () => {
+    const doc = {
+      root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: [] } },
+    } as never;
+    const html = renderHtmlWithMeta(doc, { rootBlockId: 'root' });
+    expect(html).not.toContain('mso-hide:all');
   });
 });
 

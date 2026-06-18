@@ -10,6 +10,7 @@ import BaseSidebarPanel from './helpers/BaseSidebarPanel';
 import ColorInput, { NullableColorInput } from './helpers/inputs/ColorInput';
 import { NullableFontFamily } from './helpers/inputs/FontFamily';
 import SliderInput from './helpers/inputs/SliderInput';
+import TextInput from './helpers/inputs/TextInput';
 
 type EmailLayoutSidebarFieldsProps = {
   data: EmailLayoutProps;
@@ -30,6 +31,13 @@ export default function EmailLayoutSidebarFields({ data, setData }: EmailLayoutS
 
   return (
     <BaseSidebarPanel title="Global">
+      <TextInput
+        label="Preview text"
+        rows={2}
+        helperText="Shown in the inbox after the subject line (~100 characters). Hidden in the email itself."
+        defaultValue={data.previewText ?? ''}
+        onChange={(previewText) => updateData({ ...data, previewText })}
+      />
       <ColorInput
         label="Backdrop color"
         defaultValue={data.backdropColor ?? '#F5F5F5'}
