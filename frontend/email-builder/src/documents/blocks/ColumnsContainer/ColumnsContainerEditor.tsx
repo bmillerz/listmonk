@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { useCurrentBlockId } from '../../editor/EditorBlock';
-import { setDocument, setSelectedBlockId, useSelectedScreenSize } from '../../editor/EditorContext';
+import { setDocument, setSelectedBlockId, useDocument, useSelectedScreenSize } from '../../editor/EditorContext';
 import EditorChildrenIds, { EditorChildrenChange } from '../helpers/EditorChildrenIds';
 
 import ColumnsContainerPropsSchema, { ColumnsContainerProps } from './ColumnsContainerPropsSchema';
@@ -24,6 +24,7 @@ const JUSTIFY: Record<string, 'flex-start' | 'center' | 'flex-end'> = {
 export default function ColumnsContainerEditor({ style, props }: ColumnsContainerProps) {
   const currentBlockId = useCurrentBlockId();
   const selectedScreenSize = useSelectedScreenSize();
+  const document = useDocument();
 
   const { columns, ...restProps } = props ?? {};
   const columnsValue = columns ?? EMPTY_COLUMNS;
@@ -86,7 +87,13 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
     >
       {order.map((columnIndex) => {
         const i = columnIndex as 0 | 1 | 2;
-        const single = (columns?.[i]?.childrenIds?.length ?? 0) === 1;
+        // Only a lone Container-with-a-background (a "card") fills to equal
+        // height; any other content respects contentAlignment instead.
+        const childIds = columns?.[i]?.childrenIds ?? [];
+        const onlyChild = childIds.length === 1 ? document[childIds[0]] : undefined;
+        const isCard =
+          onlyChild?.type === 'Container' &&
+          Boolean((onlyChild.data as { style?: { backgroundColor?: string | null } } | undefined)?.style?.backgroundColor);
         const width = fixedWidths?.[i] ?? null;
         const sizing: React.CSSProperties = isMobile
           ? { width: '100%' }
@@ -98,7 +105,7 @@ export default function ColumnsContainerEditor({ style, props }: ColumnsContaine
             key={columnIndex}
             // .lm-col-fill marks the single-card pattern; CSS grows the card to
             // fill the (flex-stretched, equal-height) column.
-            className={single ? 'lm-col-fill' : undefined}
+            className={isCard ? 'lm-col-fill' : undefined}
             style={{
               ...sizing,
               display: 'flex',

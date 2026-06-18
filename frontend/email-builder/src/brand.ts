@@ -30,7 +30,9 @@ export function brandHeadStyle(columnGapPx = 0): string {
     // side-by-side cards match height. Scoped to :only-child so multi-block
     // columns are untouched.
     `td[style*="content-box"]{height:100% !important}` +
-    `td[style*="content-box"]>div:only-child{height:100% !important}` +
+    // Only a lone card (a single child div with a background — i.e. a Container)
+    // fills to equal height; other content keeps its vertical-align.
+    `td[style*="content-box"]>div[style*="background"]:only-child{height:100% !important}` +
     `@media only screen and (max-width:${MOBILE_BREAKPOINT_PX}px){` +
     `td[style*="content-box"]{display:block !important;width:100% !important;` +
     `padding-left:0 !important;padding-right:0 !important;box-sizing:border-box !important}` +

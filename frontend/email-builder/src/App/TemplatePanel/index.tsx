@@ -88,7 +88,7 @@ export default function TemplatePanel() {
           // tab uses the table renderer, so the card is the cell's only child.
           `.lm-brand-canvas .lm-col-fill>.MuiBox-root{flex:1 1 auto;min-height:0}` +
           `.lm-brand-canvas .lm-col-fill>.MuiBox-root>div{height:100%}` +
-          `.lm-brand-canvas td[style*="content-box"]>div:only-child{height:100% !important}`}
+          `.lm-brand-canvas td[style*="content-box"]>div[style*="background"]:only-child{height:100% !important}`}
       </style>
       <Stack
         sx={{
