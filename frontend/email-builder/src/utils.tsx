@@ -45,6 +45,56 @@ export function transformCustomBlocks(document: TEditorConfiguration): TEditorCo
   return out;
 }
 
+// Walks the document in the SAME depth-first order the reader renders, returning
+// one flag per ColumnsContainer (in render order) marking whether it reverses on
+// mobile. Used to tag the matching <table>s in the output by position.
+function collectReversedColumnFlags(document: TEditorConfiguration, rootId: string): boolean[] {
+  const flags: boolean[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (seen.has(id)) {
+      return; // guard against malformed cyclic documents
+    }
+    seen.add(id);
+    const block = document[id] as
+      | { type?: string; data?: { childrenIds?: string[]; props?: Record<string, unknown> } }
+      | undefined;
+    if (!block) {
+      return;
+    }
+    const { type, data } = block;
+    if (type === 'ColumnsContainer') {
+      const props = data?.props as
+        | { reverseStackOnMobile?: boolean | null; columnsCount?: number | null; columns?: { childrenIds?: string[] }[] }
+        | undefined;
+      flags.push(props?.reverseStackOnMobile === true);
+      const count = props?.columnsCount ?? 2; // reader renders only `columnsCount` cells
+      (props?.columns ?? []).slice(0, count).forEach((col) => (col?.childrenIds ?? []).forEach(visit));
+    } else if (type === 'EmailLayout') {
+      (data?.childrenIds ?? []).forEach(visit);
+    } else if (type === 'Container') {
+      ((data?.props?.childrenIds as string[] | undefined) ?? []).forEach(visit);
+    }
+  };
+  visit(rootId);
+  return flags;
+}
+
+// Tags the column <table>s belonging to reverse-on-mobile blocks with `.lm-rev`
+// so the @media rule can flip them. Tables are matched by their unique
+// `table-layout:fixed` style, in render order, against the flags above.
+function markReversedColumns(html: string, flags: boolean[]): string {
+  if (!flags.some(Boolean)) {
+    return html;
+  }
+  let i = 0;
+  return html.replace(/<table\s(?=[^>]*table-layout:fixed)/g, (tag) => {
+    const reversed = flags[i] === true;
+    i += 1;
+    return reversed ? '<table class="lm-rev" ' : tag;
+  });
+}
+
 export function injectBrandHead(html: string, columnGapPx = 0): string {
   const head =
     '<head>' +
@@ -69,5 +119,9 @@ export function renderHtmlWithMeta(
   // block, so the result is a valid reader document despite its editor-typed
   // signature (which now includes custom block types the reader doesn't know).
   const readerDocument = transformCustomBlocks(document) as Parameters<typeof renderToStaticMarkup>[0];
-  return injectBrandHead(renderToStaticMarkup(readerDocument, options), getColumnsGap(document));
+  const html = markReversedColumns(
+    renderToStaticMarkup(readerDocument, options),
+    collectReversedColumnFlags(document, options.rootBlockId)
+  );
+  return injectBrandHead(html, getColumnsGap(document));
 }

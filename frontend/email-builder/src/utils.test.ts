@@ -78,6 +78,37 @@ describe('renderHtmlWithMeta custom blocks', () => {
   });
 });
 
+describe('renderHtmlWithMeta column reversal', () => {
+  const makeDoc = (reverse: boolean) =>
+    ({
+      root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: ['cols'] } },
+      cols: {
+        type: 'ColumnsContainer',
+        data: {
+          props: {
+            columnsCount: 2,
+            columnsGap: 16,
+            reverseStackOnMobile: reverse,
+            columns: [{ childrenIds: ['a'] }, { childrenIds: ['b'] }, { childrenIds: [] }],
+          },
+        },
+      },
+      a: { type: 'Text', data: { props: { text: 'A' } } },
+      b: { type: 'Text', data: { props: { text: 'B' } } },
+    }) as never;
+
+  it('tags a reverse-on-mobile column table with .lm-rev and emits the flip rule', () => {
+    const html = renderHtmlWithMeta(makeDoc(true), { rootBlockId: 'root' });
+    expect(html).toContain('<table class="lm-rev"');
+    expect(html).toContain('flex-direction:column-reverse');
+  });
+
+  it('does not tag a column table when reverse is off', () => {
+    const html = renderHtmlWithMeta(makeDoc(false), { rootBlockId: 'root' });
+    expect(html).not.toContain('<table class="lm-rev"');
+  });
+});
+
 describe('brandHeadStyle', () => {
   it('rounds and clamps the gap to a non-negative integer', () => {
     expect(brandHeadStyle(15.6)).toContain('padding-top:16px !important');
