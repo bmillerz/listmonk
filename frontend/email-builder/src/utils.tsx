@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from '@usewaypoint/email-builder';
 
-import { brandHeadStyle } from './brand';
+import { BRAND_ACCENT, brandHeadStyle } from './brand';
 import { renderAvatarSignoffHtml } from './documents/blocks/AvatarSignoff/renderAvatarSignoff';
 import { renderIrishWordOfTheWeekHtml } from './documents/blocks/IrishWordOfTheWeek/renderIrishWordOfTheWeek';
 import { renderSocialLinksHtml } from './documents/blocks/SocialLinks/renderSocialLinks';
@@ -106,6 +106,45 @@ function markReversedColumns(html: string, flags: boolean[]): string {
   });
 }
 
+// Gmail ignores CSS attribute selectors (e.g. `td[style*="content-box"]`), so the
+// responsive column rules in brandHeadStyle silently did nothing there while working
+// in Apple Mail. The npm reader renders each ColumnsContainer cell with an inline
+// `box-sizing:content-box` and no class; tag those cells with the real `lm-col` class
+// so the @media stacking/reverse rules (which now target `.lm-col`) apply in Gmail too.
+function tagColumnCells(html: string): string {
+  return html.replace(/<td\b([^>]*)>/gi, (tag, attrs: string) => {
+    if (!/content-box/i.test(attrs)) {
+      return tag;
+    }
+    const classAttr = attrs.match(/\sclass\s*=\s*"([^"]*)"/i);
+    if (classAttr) {
+      return /\blm-col\b/.test(classAttr[1])
+        ? tag
+        : `<td${attrs.replace(/(\sclass\s*=\s*")([^"]*)(")/i, '$1$2 lm-col$3')}>`;
+    }
+    return `<td${attrs} class="lm-col">`;
+  });
+}
+
+// Gmail also ignores `a:not([style*="background"])`, so the brand link colour never
+// applied there. Inline the accent colour directly on each text link — inline styles
+// work in every client. Button links carry an inline `background` (and their own text
+// colour), so they're left untouched; any link with its own explicit colour is too.
+function inlineBrandLinkColor(html: string): string {
+  return html.replace(/<a\b([^>]*)>/gi, (tag, attrs: string) => {
+    const styleAttr = attrs.match(/\sstyle\s*=\s*"([^"]*)"/i);
+    const style = styleAttr ? styleAttr[1] : '';
+    if (/background/i.test(style)) {
+      return tag;
+    }
+    const withoutColor = style.replace(/(?:^|;)\s*color\s*:[^;]*/gi, '').replace(/^;+/, '');
+    const newStyle = withoutColor ? `color:${BRAND_ACCENT};${withoutColor}` : `color:${BRAND_ACCENT}`;
+    return styleAttr
+      ? `<a${attrs.replace(/(\sstyle\s*=\s*")[^"]*(")/i, `$1${newStyle}$2`)}>`
+      : `<a${attrs} style="${newStyle}">`;
+  });
+}
+
 // The EmailLayout root holds the email's global settings, including preview text.
 function getPreviewText(document: TEditorConfiguration, rootId: string): string {
   const root = document?.[rootId] as { type?: string; data?: { previewText?: string | null } } | undefined;
@@ -147,10 +186,17 @@ export function renderHtmlWithMeta(
   // block, so the result is a valid reader document despite its editor-typed
   // signature (which now includes custom block types the reader doesn't know).
   const readerDocument = transformCustomBlocks(document) as Parameters<typeof renderToStaticMarkup>[0];
+  // Post-process for Gmail (which ignores attribute selectors): tag column cells
+  // with the `lm-col` class so the @media rules apply, and inline the brand link
+  // colour. markReversedColumns runs first so the column <table>s are tagged.
   let html = injectBrandHead(
-    markReversedColumns(
-      renderToStaticMarkup(readerDocument, options),
-      collectReversedColumnFlags(document, options.rootBlockId)
+    inlineBrandLinkColor(
+      tagColumnCells(
+        markReversedColumns(
+          renderToStaticMarkup(readerDocument, options),
+          collectReversedColumnFlags(document, options.rootBlockId)
+        )
+      )
     ),
     getColumnsGap(document)
   );

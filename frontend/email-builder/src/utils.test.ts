@@ -26,13 +26,15 @@ describe('injectBrandHead', () => {
   it('stacks column cells full-width at the mobile breakpoint', () => {
     const out = injectBrandHead('<html></html>');
     expect(out).toContain(`@media only screen and (max-width:${MOBILE_BREAKPOINT_PX}px)`);
-    expect(out).toContain('td[style*="content-box"]');
+    // Class selector (not an attribute selector) so Gmail applies it; cells are
+    // tagged with `lm-col` during export. See gmail-compat.test.ts.
+    expect(out).toContain('.lm-col{display:block !important');
     expect(out).toContain('display:block !important');
   });
 
   it('uses the supplied column gap as vertical spacing between stacked columns', () => {
     const out = injectBrandHead('<html></html>', 24);
-    expect(out).toContain('td[style*="content-box"]+td[style*="content-box"]{padding-top:24px !important}');
+    expect(out).toContain('.lm-col+.lm-col{padding-top:24px !important}');
   });
 
   it('defaults the column gap to 0 when not supplied', () => {
@@ -42,7 +44,7 @@ describe('injectBrandHead', () => {
 
   it('stretches a lone Container in a column to full cell height (equal cards)', () => {
     const out = injectBrandHead('<html></html>');
-    expect(out).toContain('td[style*="content-box"]>div[style*="background"]:only-child{height:100% !important}');
+    expect(out).toContain('.lm-col>div[style*="background"]:only-child{height:100% !important}');
   });
 
   it('drops the EmailLayout backdrop vertical framing on mobile', () => {
