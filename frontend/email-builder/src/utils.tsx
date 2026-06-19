@@ -225,6 +225,44 @@ function tagColumnCells(html: string): string {
   });
 }
 
+// Equal-height cards in Gmail: the brandHeadStyle rule that stretches a lone card to
+// its cell height keys off `.lm-col>.lm-card` — a class, because Gmail ignores the
+// attribute/:only-child selector it would otherwise need. Tag the sole-child background
+// <div> (a Container "card") inside each column cell with `lm-card`. Non-card columns
+// (image/text, or multi-block) don't start with a lone background div, so are skipped.
+function tagEqualHeightCards(html: string): string {
+  const tdOpen = /<td\b[^>]*\bclass="[^"]*\blm-col\b[^"]*"[^>]*>/gi;
+  const ops: { start: number; end: number; replacement: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = tdOpen.exec(html)) !== null) {
+    const contentStart = m.index + m[0].length;
+    const tdClose = matchingCloseIndex(html, contentStart, 'td');
+    if (tdClose < 0) {
+      continue;
+    }
+    const inner = html.slice(contentStart, tdClose);
+    const divOpen = /^<div\b[^>]*\bstyle="[^"]*background[^"]*"[^>]*>/i.exec(inner);
+    if (!divOpen) {
+      continue;
+    }
+    // The background div must be the cell's ONLY child (its </div> ends the content).
+    const divClose = matchingCloseIndex(inner, divOpen[0].length, 'div');
+    if (divClose < 0 || inner.slice(divClose).replace(/^<\/div>/i, '').trim() !== '') {
+      continue;
+    }
+    const tagged = /\bclass="/i.test(divOpen[0])
+      ? divOpen[0].replace(/\bclass="/i, 'class="lm-card ')
+      : divOpen[0].replace(/^<div\b/i, '<div class="lm-card"');
+    ops.push({ start: contentStart, end: contentStart + divOpen[0].length, replacement: tagged });
+  }
+  ops.sort((a, b) => b.start - a.start);
+  let out = html;
+  for (const op of ops) {
+    out = out.slice(0, op.start) + op.replacement + out.slice(op.end);
+  }
+  return out;
+}
+
 // Gmail also ignores `a:not([style*="background"])`, so the brand link colour never
 // applied there. Inline the accent colour directly on each text link — inline styles
 // work in every client. Button links carry an inline `background` (and their own text
@@ -264,7 +302,13 @@ function preheaderHtml(text: string): string {
 export function injectBrandHead(html: string, columnGapPx = 0): string {
   const head =
     '<head>' +
+    '<meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    // Stop iOS Mail auto-resizing the layout, and keep the design in light mode so
+    // Apple Mail / Outlook dark mode don't force-invert the brand colours.
+    '<meta name="x-apple-disable-message-reformatting">' +
+    '<meta name="color-scheme" content="light">' +
+    '<meta name="supported-color-schemes" content="light">' +
     `<style>${brandHeadStyle(columnGapPx)}</style>` +
     '</head>';
   // Match <html> with or without attributes (e.g. a future upstream `<html lang>`),
@@ -291,10 +335,12 @@ export function renderHtmlWithMeta(
   // reverseColumnsForMobile runs first so it sees the raw rendered <tr>/<td>s.
   let html = injectBrandHead(
     inlineBrandLinkColor(
-      tagColumnCells(
-        reverseColumnsForMobile(
-          renderToStaticMarkup(readerDocument, options),
-          collectReversedColumnFlags(document, options.rootBlockId)
+      tagEqualHeightCards(
+        tagColumnCells(
+          reverseColumnsForMobile(
+            renderToStaticMarkup(readerDocument, options),
+            collectReversedColumnFlags(document, options.rootBlockId)
+          )
         )
       )
     ),

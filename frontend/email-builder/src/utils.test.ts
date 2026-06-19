@@ -42,9 +42,17 @@ describe('injectBrandHead', () => {
     expect(out).toContain('padding-top:0px !important');
   });
 
-  it('stretches a lone Container in a column to full cell height (equal cards)', () => {
+  it('stretches a lone card (.lm-card) in a column to full cell height (equal cards)', () => {
     const out = injectBrandHead('<html></html>');
-    expect(out).toContain('.lm-col>div[style*="background"]:only-child{height:100% !important}');
+    expect(out).toContain('.lm-col>.lm-card{height:100% !important}');
+  });
+
+  it('adds the charset, iOS and light color-scheme metas', () => {
+    const out = injectBrandHead('<html></html>');
+    expect(out).toContain('<meta charset="utf-8">');
+    expect(out).toContain('x-apple-disable-message-reformatting');
+    expect(out).toContain('<meta name="color-scheme" content="light">');
+    expect(out).toContain('<meta name="supported-color-schemes" content="light">');
   });
 
   it('drops the EmailLayout backdrop vertical framing on mobile', () => {

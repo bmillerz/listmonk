@@ -36,9 +36,10 @@ export function brandHeadStyle(columnGapPx = 0): string {
     // side-by-side cards match height. Scoped to :only-child so multi-block
     // columns are untouched.
     `.lm-col{height:100% !important}` +
-    // Only a lone card (a single child div with a background — i.e. a Container)
-    // fills to equal height; other content keeps its vertical-align.
-    `.lm-col>div[style*="background"]:only-child{height:100% !important}` +
+    // Only a lone card (a single child div with a background — i.e. a Container,
+    // tagged `lm-card` by utils.tsx) fills to equal height; other content keeps its
+    // vertical-align. A class, not an attribute/:only-child selector, so Gmail applies it.
+    `.lm-col>.lm-card{height:100% !important}` +
     `@media only screen and (max-width:${MOBILE_BREAKPOINT_PX}px){` +
     `.lm-col{display:block !important;width:100% !important;` +
     `padding-left:0 !important;padding-right:0 !important;box-sizing:border-box !important}` +

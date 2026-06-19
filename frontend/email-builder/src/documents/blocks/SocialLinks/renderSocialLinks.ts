@@ -3,16 +3,18 @@ import { SocialLinksProps } from './SocialLinksPropsSchema';
 
 // Shared renderer (editor preview + email export). Table-based row of green
 // circular icon buttons. Icons are white PNGs (render in every client, unlike
-// inline SVG which Gmail/Outlook strip). For large sends, host these 4 icons on
-// your own domain and swap ICONS below — see notes.
+// inline SVG which Gmail/Outlook strip). Self-hosted on the listmonk uploads dir
+// for reliability (no third-party CDN dependency); to change them, replace the
+// PNG files at those URLs — same filenames, no code change needed.
 const PLATFORMS = ['website', 'facebook', 'instagram', 'tiktok'] as const;
 type Platform = (typeof PLATFORMS)[number];
 
+const ICON_BASE = 'https://listmonk.irelandtipsfortravellers.com/uploads';
 const ICONS: Record<Platform, string> = {
-  website: 'https://img.icons8.com/ios-filled/100/FFFFFF/domain.png',
-  facebook: 'https://img.icons8.com/ios-filled/100/FFFFFF/facebook-new.png',
-  instagram: 'https://img.icons8.com/ios-filled/100/FFFFFF/instagram-new.png',
-  tiktok: 'https://img.icons8.com/ios-filled/100/FFFFFF/tiktok.png',
+  website: `${ICON_BASE}/social-website.png`,
+  facebook: `${ICON_BASE}/social-facebook.png`,
+  instagram: `${ICON_BASE}/social-instagram.png`,
+  tiktok: `${ICON_BASE}/social-tiktok.png`,
 };
 
 const LABELS: Record<Platform, string> = {
