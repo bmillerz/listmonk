@@ -9,7 +9,7 @@ export default function SocialLinksEditor({ style, props }: SocialLinksProps) {
   const p = style?.padding;
   const padding = p ? `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px` : undefined;
   return (
-    <div style={{ padding }}>
+    <div style={{ padding, backgroundColor: style?.backgroundColor ?? undefined }}>
       <div dangerouslySetInnerHTML={{ __html: renderSocialLinksHtml(props) }} />
     </div>
   );

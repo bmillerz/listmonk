@@ -61,7 +61,7 @@ export default function SocialLinksSidebarPanel({ data, setData }: SocialLinksSi
       </RadioGroupInput>
 
       <MultiStylePropertyPanel
-        names={['padding']}
+        names={['backgroundColor', 'padding']}
         value={data.style}
         onChange={(style) => updateData({ ...data, style })}
       />

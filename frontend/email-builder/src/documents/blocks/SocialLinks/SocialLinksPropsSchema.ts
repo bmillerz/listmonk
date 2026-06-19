@@ -5,6 +5,7 @@ import { z } from 'zod';
 const SocialLinksPropsSchema = z.object({
   style: z
     .object({
+      backgroundColor: z.string().optional().nullable(),
       padding: z
         .object({
           top: z.number(),
