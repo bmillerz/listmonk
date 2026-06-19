@@ -91,19 +91,110 @@ function collectReversedColumnFlags(document: TEditorConfiguration, rootId: stri
   return flags;
 }
 
-// Tags the column <table>s belonging to reverse-on-mobile blocks with `.lm-rev`
-// so the @media rule can flip them. Tables are matched by their unique
-// `table-layout:fixed` style, in render order, against the flags above.
-function markReversedColumns(html: string, flags: boolean[]): string {
+// Reverse-on-mobile columns: Gmail ignores flexbox, so stacking order can't be
+// flipped with CSS. Instead, for each ColumnsContainer flagged reverseStackOnMobile,
+// physically reverse its rendered cells and set the row dir="rtl" (cells dir="ltr").
+// dir="rtl" restores the original left-to-right order on desktop, while the reversed
+// source order makes the cells stack bottom-to-top when they go full-width on mobile.
+// Each cell keeps the padding it was rendered with, so the desktop column gap is
+// unchanged — and there's no flexbox or attribute selector, so it works in Gmail too.
+// Column tables are matched by their unique `table-layout:fixed` style, in render
+// order, against the flags. (A reversed column nested inside another reversed column
+// is left in place — rare, and reversing both would corrupt the spliced spans.)
+function reverseColumnsForMobile(html: string, flags: boolean[]): string {
   if (!flags.some(Boolean)) {
     return html;
   }
-  let i = 0;
-  return html.replace(/<table\s(?=[^>]*table-layout:fixed)/g, (tag) => {
-    const reversed = flags[i] === true;
-    i += 1;
-    return reversed ? '<table class="lm-rev" ' : tag;
-  });
+  const ops: { start: number; end: number; replacement: string }[] = [];
+  const colTable = /<table\b(?=[^>]*table-layout:fixed)/gi;
+  let match: RegExpExecArray | null;
+  let flagIndex = 0;
+  while ((match = colTable.exec(html)) !== null) {
+    const reversed = flags[flagIndex] === true;
+    flagIndex += 1;
+    if (!reversed) {
+      continue;
+    }
+    const rel = html.slice(match.index).search(/<tr\b/i);
+    if (rel < 0) {
+      continue;
+    }
+    const trStart = match.index + rel;
+    const trTagEnd = html.indexOf('>', trStart) + 1;
+    const closeIdx = matchingCloseIndex(html, trTagEnd, 'tr');
+    if (trTagEnd <= 0 || closeIdx < 0) {
+      continue;
+    }
+    const end = closeIdx + '</tr>'.length;
+    // Skip a row that overlaps one already queued (nested reversed columns).
+    if (ops.some((o) => trStart < o.end && end > o.start)) {
+      continue;
+    }
+    const cells = splitTopLevelCells(html.slice(trTagEnd, closeIdx));
+    if (cells.length < 2) {
+      continue;
+    }
+    const reversedRow =
+      html.slice(trStart, trTagEnd).replace(/^<tr\b/i, '<tr dir="rtl"') +
+      cells
+        .map((c) => c.replace(/^<td\b/i, '<td dir="ltr"'))
+        .reverse()
+        .join('') +
+      '</tr>';
+    ops.push({ start: trStart, end, replacement: reversedRow });
+  }
+  // Apply right-to-left so earlier offsets stay valid.
+  ops.sort((a, b) => b.start - a.start);
+  let out = html;
+  for (const op of ops) {
+    out = out.slice(0, op.start) + op.replacement + out.slice(op.end);
+  }
+  return out;
+}
+
+// Index of the '<' of the </tag> matching the <tag> opened just before fromIdx,
+// counting nested same-name tags. Returns -1 if unbalanced.
+function matchingCloseIndex(html: string, fromIdx: number, tag: string): number {
+  const re = new RegExp(`<${tag}\\b|</${tag}>`, 'gi');
+  re.lastIndex = fromIdx;
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    if (m[0][1] === '/') {
+      depth -= 1;
+      if (depth === 0) {
+        return m.index;
+      }
+    } else {
+      depth += 1;
+    }
+  }
+  return -1;
+}
+
+// Splits a table row's inner HTML into its top-level <td>…</td> cells, keeping nested
+// tables' cells (which sit at a deeper depth) inside their parent cell.
+function splitTopLevelCells(rowInner: string): string[] {
+  const cells: string[] = [];
+  const re = /<td\b|<\/td>/gi;
+  let depth = 0;
+  let start = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rowInner)) !== null) {
+    if (m[0][1] === '/') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        cells.push(rowInner.slice(start, m.index + m[0].length));
+        start = -1;
+      }
+    } else {
+      if (depth === 0) {
+        start = m.index;
+      }
+      depth += 1;
+    }
+  }
+  return cells;
 }
 
 // Gmail ignores CSS attribute selectors (e.g. `td[style*="content-box"]`), so the
@@ -186,13 +277,14 @@ export function renderHtmlWithMeta(
   // block, so the result is a valid reader document despite its editor-typed
   // signature (which now includes custom block types the reader doesn't know).
   const readerDocument = transformCustomBlocks(document) as Parameters<typeof renderToStaticMarkup>[0];
-  // Post-process for Gmail (which ignores attribute selectors): tag column cells
-  // with the `lm-col` class so the @media rules apply, and inline the brand link
-  // colour. markReversedColumns runs first so the column <table>s are tagged.
+  // Post-process for Gmail (which ignores attribute selectors and flexbox):
+  // structurally reverse reverse-on-mobile column rows, tag column cells with the
+  // `lm-col` class so the @media rules apply, and inline the brand link colour.
+  // reverseColumnsForMobile runs first so it sees the raw rendered <tr>/<td>s.
   let html = injectBrandHead(
     inlineBrandLinkColor(
       tagColumnCells(
-        markReversedColumns(
+        reverseColumnsForMobile(
           renderToStaticMarkup(readerDocument, options),
           collectReversedColumnFlags(document, options.rootBlockId)
         )

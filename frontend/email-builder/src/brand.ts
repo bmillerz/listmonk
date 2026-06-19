@@ -43,11 +43,10 @@ export function brandHeadStyle(columnGapPx = 0): string {
     `.lm-col{display:block !important;width:100% !important;` +
     `padding-left:0 !important;padding-right:0 !important;box-sizing:border-box !important}` +
     `.lm-col+.lm-col{padding-top:${gap}px !important}` +
-    // Reverse-on-mobile: column tables tagged `.lm-rev` (by markReversedColumns
-    // in utils) stack bottom-to-top. flex `gap` carries the spacing, so the
-    // stacking padding-top above is zeroed for these.
-    `.lm-rev>tbody>tr{display:flex !important;flex-direction:column-reverse !important;gap:${gap}px !important}` +
-    `.lm-rev>tbody>tr>.lm-col+.lm-col{padding-top:0 !important}` +
+    // Reverse-on-mobile is handled structurally in utils.tsx (cells physically
+    // reversed + row dir="rtl"), not via flexbox — Gmail ignores flex. So the
+    // normal `.lm-col` stacking above already gives reversed blocks the correct
+    // bottom-to-top order and gap; no extra rule is needed here.
     // Drop the EmailLayout backdrop's hard-coded 32px top/bottom framing on
     // mobile (its inline style is the unique `padding:32px 0` marker).
     `div[style*="padding:32px 0"]{padding-top:0 !important;padding-bottom:0 !important}}`

@@ -126,19 +126,27 @@ describe('renderHtmlWithMeta column reversal', () => {
           },
         },
       },
-      a: { type: 'Text', data: { props: { text: 'A' } } },
-      b: { type: 'Text', data: { props: { text: 'B' } } },
+      a: { type: 'Text', data: { props: { text: 'COLALPHA' } } },
+      b: { type: 'Text', data: { props: { text: 'COLBETA' } } },
     }) as never;
 
-  it('tags a reverse-on-mobile column table with .lm-rev and emits the flip rule', () => {
+  it('reverses the cells and sets dir (Gmail-safe, no flexbox) for reverse-on-mobile', () => {
     const html = renderHtmlWithMeta(makeDoc(true), { rootBlockId: 'root' });
-    expect(html).toContain('<table class="lm-rev"');
-    expect(html).toContain('flex-direction:column-reverse');
+    // Column B (source 2nd) is physically moved before column A...
+    expect(html.indexOf('COLBETA')).toBeLessThan(html.indexOf('COLALPHA'));
+    // ...with dir="rtl" on the row restoring the original order on desktop,
+    expect(html).toMatch(/<tr[^>]*\sdir="rtl"/);
+    // ...and dir="ltr" on the cells keeping their content left-to-right.
+    expect(html).toContain('dir="ltr"');
+    // No flexbox (Gmail ignores it) and no leftover lm-rev marker.
+    expect(html).not.toContain('flex-direction:column-reverse');
+    expect(html).not.toContain('lm-rev');
   });
 
-  it('does not tag a column table when reverse is off', () => {
+  it('keeps cells in source order with no dir when reverse is off', () => {
     const html = renderHtmlWithMeta(makeDoc(false), { rootBlockId: 'root' });
-    expect(html).not.toContain('<table class="lm-rev"');
+    expect(html.indexOf('COLALPHA')).toBeLessThan(html.indexOf('COLBETA'));
+    expect(html).not.toMatch(/<tr[^>]*\sdir="rtl"/);
   });
 });
 
