@@ -2,7 +2,6 @@ import React from 'react';
 
 import { MonitorOutlined, PhoneIphoneOutlined } from '@mui/icons-material';
 import { Box, Stack, SxProps, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { Reader } from '@usewaypoint/email-builder';
 
 import { BRAND_ACCENT } from '../../brand';
 import EditorBlock from '../../documents/editor/EditorBlock';
@@ -13,13 +12,14 @@ import {
   useSelectedScreenSize,
 } from '../../documents/editor/EditorContext';
 import ToggleInspectorPanelButton from '../InspectorDrawer/ToggleInspectorPanelButton';
-import { transformCustomBlocks } from '../../utils';
+import { renderHtmlWithMeta } from '../../utils';
 
 import DownloadJson from './DownloadJson';
 import HtmlPanel from './HtmlPanel';
 import ImportJson from './ImportJson';
 import JsonPanel from './JsonPanel';
 import MainTabsGroup from './MainTabsGroup';
+import PreviewIframe from './PreviewIframe';
 
 export default function TemplatePanel() {
   const document = useDocument();
@@ -60,11 +60,15 @@ export default function TemplatePanel() {
           </Box>
         );
       case 'preview':
+        // True WYSIWYG: render the real exported email HTML in an iframe so the
+        // preview matches the sent email exactly (responsive stacking, reverse-on-
+        // mobile, links, equal-height) — driven by the email's own media queries at
+        // the iframe's width. The mobile toggle's 370px frame triggers the stack.
         return (
           <Box className="lm-brand-canvas" sx={mainBoxSx}>
-            <Reader
-              document={transformCustomBlocks(document) as React.ComponentProps<typeof Reader>['document']}
-              rootBlockId="root"
+            <PreviewIframe
+              html={renderHtmlWithMeta(document, { rootBlockId: 'root' })}
+              fillHeight={selectedScreenSize === 'mobile'}
             />
           </Box>
         );
