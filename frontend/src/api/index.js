@@ -317,6 +317,11 @@ export const getCampaignBounceCounts = async (params) => http.get(
   { params, loading: models.campaigns },
 );
 
+export const getCampaignUnsubscribeCounts = async (params) => http.get(
+  '/api/campaigns/analytics/unsubscribes',
+  { params, loading: models.campaigns },
+);
+
 export const getCampaignLinkCounts = async (params) => http.get(
   '/api/campaigns/analytics/links',
   { params, loading: models.campaigns },

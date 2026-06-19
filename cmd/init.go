@@ -414,6 +414,11 @@ func prepareQueries(qMap goyesql.Queries, db *sqlx.DB, ko *koanf.Koanf) *models.
 		Query: fmt.Sprintf(qMap[countQuery].Query, "campaign_views"),
 		Tags:  map[string]string{"name": "get-campaign-view-counts"},
 	}
+	// BRAND: per-campaign unsubscribe counts, same shape as views (campaign_id, created_at).
+	qMap["get-campaign-unsubscribe-counts"] = &goyesql.Query{
+		Query: fmt.Sprintf(qMap[countQuery].Query, "campaign_unsubscribes"),
+		Tags:  map[string]string{"name": "get-campaign-unsubscribe-counts"},
+	}
 	qMap["get-campaign-click-counts"] = &goyesql.Query{
 		Query: fmt.Sprintf(qMap[countQuery].Query, "link_clicks"),
 		Tags:  map[string]string{"name": "get-campaign-click-counts"},

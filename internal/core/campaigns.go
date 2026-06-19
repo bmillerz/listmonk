@@ -391,6 +391,8 @@ func (c *Core) GetCampaignAnalyticsCounts(campIDs []int, typ, fromDate, toDate s
 		stmt = c.q.GetCampaignClickCounts
 	case "bounces":
 		stmt = c.q.GetCampaignBounceCounts
+	case "unsubscribes":
+		stmt = c.q.GetCampaignUnsubscribeCounts
 	default:
 		return nil, echo.NewHTTPError(http.StatusBadRequest, c.i18n.T("globals.messages.invalidData"))
 	}
