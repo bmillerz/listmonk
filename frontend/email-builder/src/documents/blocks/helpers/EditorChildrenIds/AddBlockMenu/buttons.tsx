@@ -10,6 +10,7 @@ import {
   ImageOutlined,
   LibraryAddOutlined,
   NotesOutlined,
+  ShareOutlined,
   SmartButtonOutlined,
   TranslateOutlined,
   ViewColumnOutlined,
@@ -42,10 +43,11 @@ export const BUTTONS: TButtonProps[] = [
     block: () => ({
       type: 'Text',
       data: {
-        props: { text: 'My new text block' },
+        props: { text: 'My new text block', markdown: true },
         style: {
           padding: { top: 16, bottom: 16, left: 24, right: 24 },
           fontWeight: 'normal',
+          fontSize: 14,
         },
       },
     }),
@@ -189,6 +191,23 @@ export const BUTTONS: TButtonProps[] = [
           name: 'Meghan',
           subtitle: 'Ireland Tips for Travellers',
           shape: 'circle',
+        },
+      },
+    }),
+  },
+
+  {
+    label: 'Social',
+    icon: <ShareOutlined />,
+    block: () => ({
+      type: 'SocialLinks',
+      data: {
+        style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
+        props: {
+          website: 'https://irelandtipsfortravellers.com',
+          facebook: 'https://facebook.com/',
+          instagram: 'https://instagram.com/',
+          tiktok: 'https://tiktok.com/',
         },
       },
     }),

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from '@usewaypoint/email-builder';
 import { brandHeadStyle } from './brand';
 import { renderAvatarSignoffHtml } from './documents/blocks/AvatarSignoff/renderAvatarSignoff';
 import { renderIrishWordOfTheWeekHtml } from './documents/blocks/IrishWordOfTheWeek/renderIrishWordOfTheWeek';
+import { renderSocialLinksHtml } from './documents/blocks/SocialLinks/renderSocialLinks';
 import { TEditorConfiguration } from './documents/editor/core';
 
 // Each custom block type maps to the function that renders it to email-safe HTML.
@@ -10,6 +11,7 @@ import { TEditorConfiguration } from './documents/editor/core';
 const CUSTOM_BLOCK_RENDERERS: Record<string, (props: never) => string> = {
   IrishWordOfTheWeek: renderIrishWordOfTheWeekHtml as (props: never) => string,
   AvatarSignoff: renderAvatarSignoffHtml as (props: never) => string,
+  SocialLinks: renderSocialLinksHtml as (props: never) => string,
 };
 
 // Returns the columnsGap of the first ColumnsContainer in the document, used as

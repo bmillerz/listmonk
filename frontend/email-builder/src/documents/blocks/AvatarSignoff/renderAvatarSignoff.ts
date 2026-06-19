@@ -40,7 +40,7 @@ export function renderAvatarSignoffHtml(props: AvatarSignoffProps['props']): str
     `<tr>`,
     avatarCell,
     `<td style="vertical-align:middle">`,
-    name ? `<div style="font-size:18px;font-weight:700;color:${TEXT};line-height:1.3">${name}</div>` : '',
+    name ? `<div style="font-size:16px;font-weight:700;color:${TEXT};line-height:1.3">${name}</div>` : '',
     subtitle
       ? `<div style="font-size:14px;font-style:italic;color:${MUTED};line-height:1.4">${subtitle}</div>`
       : '',

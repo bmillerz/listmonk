@@ -81,6 +81,19 @@ describe('renderHtmlWithMeta custom blocks', () => {
     expect(html).toContain('padding:16px 24px 16px 24px');
   });
 
+  it('renders a SocialLinks block into the email', () => {
+    const doc = {
+      root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: ['soc'] } },
+      soc: {
+        type: 'SocialLinks',
+        data: { props: { website: 'https://example.com', instagram: 'https://instagram.com/x' } },
+      },
+    } as never;
+    const html = renderHtmlWithMeta(doc, { rootBlockId: 'root' });
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('href="https://instagram.com/x"');
+  });
+
   it('renders an AvatarSignoff block into the email', () => {
     const doc = {
       root: { type: 'EmailLayout', data: { backdropColor: '#FFF', canvasColor: '#FFF', childrenIds: ['s'] } },

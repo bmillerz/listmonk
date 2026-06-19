@@ -16,6 +16,7 @@ import HeadingSidebarPanel from './input-panels/HeadingSidebarPanel';
 import HtmlSidebarPanel from './input-panels/HtmlSidebarPanel';
 import ImageSidebarPanel from './input-panels/ImageSidebarPanel';
 import IrishWordOfTheWeekSidebarPanel from './input-panels/IrishWordOfTheWeekSidebarPanel';
+import SocialLinksSidebarPanel from './input-panels/SocialLinksSidebarPanel';
 import SpacerSidebarPanel from './input-panels/SpacerSidebarPanel';
 import TextSidebarPanel from './input-panels/TextSidebarPanel';
 
@@ -59,6 +60,10 @@ export default function ConfigurationPanel() {
     case 'AvatarSignoff':
       return (
         <AvatarSignoffSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />
+      );
+    case 'SocialLinks':
+      return (
+        <SocialLinksSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />
       );
     case 'Divider':
       return <DividerSidebarPanel key={selectedBlockId} data={data} setData={(data) => setBlock({ type, data })} />;

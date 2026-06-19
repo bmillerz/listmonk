@@ -17,6 +17,8 @@ import {
 
 import AvatarSignoffEditor from '../blocks/AvatarSignoff/AvatarSignoffEditor';
 import AvatarSignoffPropsSchema from '../blocks/AvatarSignoff/AvatarSignoffPropsSchema';
+import SocialLinksEditor from '../blocks/SocialLinks/SocialLinksEditor';
+import SocialLinksPropsSchema from '../blocks/SocialLinks/SocialLinksPropsSchema';
 import ColumnsContainerEditor from '../blocks/ColumnsContainer/ColumnsContainerEditor';
 import ColumnsContainerPropsSchema from '../blocks/ColumnsContainer/ColumnsContainerPropsSchema';
 import ContainerEditor from '../blocks/Container/ContainerEditor';
@@ -73,6 +75,14 @@ const EDITOR_DICTIONARY = buildBlockConfigurationDictionary({
     Component: (props) => (
       <EditorBlockWrapper>
         <AvatarSignoffEditor {...props} />
+      </EditorBlockWrapper>
+    ),
+  },
+  SocialLinks: {
+    schema: SocialLinksPropsSchema,
+    Component: (props) => (
+      <EditorBlockWrapper>
+        <SocialLinksEditor {...props} />
       </EditorBlockWrapper>
     ),
   },
