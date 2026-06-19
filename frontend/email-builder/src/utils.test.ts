@@ -130,12 +130,14 @@ describe('renderHtmlWithMeta column reversal', () => {
       b: { type: 'Text', data: { props: { text: 'COLBETA' } } },
     }) as never;
 
-  it('reverses the cells and sets dir (Gmail-safe, no flexbox) for reverse-on-mobile', () => {
+  it('reverses the cells and sets table dir="rtl" (Gmail-safe, no flexbox) for reverse-on-mobile', () => {
     const html = renderHtmlWithMeta(makeDoc(true), { rootBlockId: 'root' });
     // Column B (source 2nd) is physically moved before column A...
     expect(html.indexOf('COLBETA')).toBeLessThan(html.indexOf('COLALPHA'));
-    // ...with dir="rtl" on the row restoring the original order on desktop,
-    expect(html).toMatch(/<tr[^>]*\sdir="rtl"/);
+    // ...with dir="rtl" on the COLUMN TABLE (not the row — that wouldn't reorder
+    // columns) restoring the original left-to-right order on desktop,
+    expect(html).toMatch(/<table dir="rtl"[^>]*table-layout:fixed/);
+    expect(html).not.toMatch(/<tr[^>]*\sdir="rtl"/);
     // ...and dir="ltr" on the cells keeping their content left-to-right.
     expect(html).toContain('dir="ltr"');
     // No flexbox (Gmail ignores it) and no leftover lm-rev marker.
@@ -146,7 +148,7 @@ describe('renderHtmlWithMeta column reversal', () => {
   it('keeps cells in source order with no dir when reverse is off', () => {
     const html = renderHtmlWithMeta(makeDoc(false), { rootBlockId: 'root' });
     expect(html.indexOf('COLALPHA')).toBeLessThan(html.indexOf('COLBETA'));
-    expect(html).not.toMatch(/<tr[^>]*\sdir="rtl"/);
+    expect(html).not.toContain('dir="rtl"');
   });
 });
 

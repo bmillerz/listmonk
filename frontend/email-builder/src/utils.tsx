@@ -93,9 +93,10 @@ function collectReversedColumnFlags(document: TEditorConfiguration, rootId: stri
 
 // Reverse-on-mobile columns: Gmail ignores flexbox, so stacking order can't be
 // flipped with CSS. Instead, for each ColumnsContainer flagged reverseStackOnMobile,
-// physically reverse its rendered cells and set the row dir="rtl" (cells dir="ltr").
-// dir="rtl" restores the original left-to-right order on desktop, while the reversed
-// source order makes the cells stack bottom-to-top when they go full-width on mobile.
+// physically reverse its rendered cells and set the COLUMN TABLE's dir="rtl" (cells
+// dir="ltr"). Table-level dir="rtl" restores the original left-to-right column order
+// on desktop, while the reversed source order makes the cells stack bottom-to-top
+// when they go full-width on mobile.
 // Each cell keeps the padding it was rendered with, so the desktop column gap is
 // unchanged — and there's no flexbox or attribute selector, so it works in Gmail too.
 // Column tables are matched by their unique `table-layout:fixed` style, in render
@@ -115,33 +116,40 @@ function reverseColumnsForMobile(html: string, flags: boolean[]): string {
     if (!reversed) {
       continue;
     }
-    const rel = html.slice(match.index).search(/<tr\b/i);
+    const tableStart = match.index;
+    const tableTag = match[0];
+    const rel = html.slice(tableStart).search(/<tr\b/i);
     if (rel < 0) {
       continue;
     }
-    const trStart = match.index + rel;
+    const trStart = tableStart + rel;
     const trTagEnd = html.indexOf('>', trStart) + 1;
     const closeIdx = matchingCloseIndex(html, trTagEnd, 'tr');
     if (trTagEnd <= 0 || closeIdx < 0) {
       continue;
     }
     const end = closeIdx + '</tr>'.length;
-    // Skip a row that overlaps one already queued (nested reversed columns).
-    if (ops.some((o) => trStart < o.end && end > o.start)) {
+    // Skip a table that overlaps one already queued (nested reversed columns).
+    if (ops.some((o) => tableStart < o.end && end > o.start)) {
       continue;
     }
     const cells = splitTopLevelCells(html.slice(trTagEnd, closeIdx));
     if (cells.length < 2) {
       continue;
     }
-    const reversedRow =
-      html.slice(trStart, trTagEnd).replace(/^<tr\b/i, '<tr dir="rtl"') +
-      cells
-        .map((c) => c.replace(/^<td\b/i, '<td dir="ltr"'))
-        .reverse()
-        .join('') +
-      '</tr>';
-    ops.push({ start: trStart, end, replacement: reversedRow });
+    // Two edits per reversed block:
+    //  1. reverse the cells in place (each kept content-LTR via dir="ltr"), so they
+    //     stack bottom-to-top once they go full-width on mobile;
+    //  2. set dir="rtl" on the COLUMN <table> — this is what actually flips table
+    //     column order, restoring the original left-to-right order on desktop. (dir
+    //     on the <tr> does NOT reorder columns — column order is a table-level
+    //     property — which is why the row-level version rendered reversed on desktop.)
+    const reversedCells = cells
+      .map((c) => c.replace(/^<td\b/i, '<td dir="ltr"'))
+      .reverse()
+      .join('');
+    ops.push({ start: trTagEnd, end: closeIdx, replacement: reversedCells });
+    ops.push({ start: tableStart, end: tableStart + tableTag.length, replacement: `${tableTag} dir="rtl"` });
   }
   // Apply right-to-left so earlier offsets stay valid.
   ops.sort((a, b) => b.start - a.start);
