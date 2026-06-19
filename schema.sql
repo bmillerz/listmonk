@@ -165,6 +165,19 @@ DROP INDEX IF EXISTS idx_views_camp_id; CREATE INDEX idx_views_camp_id ON campai
 DROP INDEX IF EXISTS idx_views_subscriber_id; CREATE INDEX idx_views_subscriber_id ON campaign_views(subscriber_id);
 DROP INDEX IF EXISTS idx_views_date; CREATE INDEX idx_views_date ON campaign_views(created_at);
 
+-- campaign_unsubscribes (BRAND: per-campaign unsubscribe tracking, mirrors campaign_views).
+-- Written by the unsubscribe-by-campaign query. On the existing install this table is
+-- created directly via SQL (the fork doesn't use listmonk's migration framework).
+DROP TABLE IF EXISTS campaign_unsubscribes CASCADE;
+CREATE TABLE campaign_unsubscribes (
+    id               BIGSERIAL PRIMARY KEY,
+    campaign_id      INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subscriber_id    INTEGER NULL REFERENCES subscribers(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_camp_unsub_camp_id; CREATE INDEX idx_camp_unsub_camp_id ON campaign_unsubscribes(campaign_id);
+DROP INDEX IF EXISTS idx_camp_unsub_date; CREATE INDEX idx_camp_unsub_date ON campaign_unsubscribes(created_at);
+
 -- media
 DROP TABLE IF EXISTS media CASCADE;
 CREATE TABLE media (

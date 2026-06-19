@@ -260,11 +260,22 @@ WITH lists AS (
 sub AS (
     UPDATE subscribers SET status = (CASE WHEN $3 IS TRUE THEN 'blocklisted' ELSE status END)
     WHERE uuid = $2 RETURNING id
+),
+unsub AS (
+    UPDATE subscriber_lists SET status = 'unsubscribed', updated_at=NOW() WHERE
+        subscriber_id = (SELECT id FROM sub) AND status != 'unsubscribed' AND
+        -- If $3 is false, unsubscribe from the campaign's lists, otherwise all lists.
+        CASE WHEN $3 IS FALSE THEN list_id = ANY(SELECT list_id FROM lists) ELSE list_id != 0 END
+    RETURNING subscriber_id
 )
-UPDATE subscriber_lists SET status = 'unsubscribed', updated_at=NOW() WHERE
-    subscriber_id = (SELECT id FROM sub) AND status != 'unsubscribed' AND
-    -- If $3 is false, unsubscribe from the campaign's lists, otherwise all lists.
-    CASE WHEN $3 IS FALSE THEN list_id = ANY(SELECT list_id FROM lists) ELSE list_id != 0 END;
+-- BRAND: record the unsubscribe against the campaign that triggered it, for per-campaign
+-- unsubscribe analytics. Exactly one row per genuine unsubscribe event (the unsub CTE
+-- only returns rows when a subscription actually flipped to 'unsubscribed', so re-clicks
+-- don't double-count). Selecting FROM campaigns WHERE uuid=$1 means a missing/invalid
+-- campaign simply records nothing rather than erroring — unsubscribe can never break.
+INSERT INTO campaign_unsubscribes (campaign_id, subscriber_id)
+    SELECT c.id, s.id FROM campaigns c CROSS JOIN sub s
+    WHERE c.uuid = $1 AND EXISTS (SELECT 1 FROM unsub);
 
 -- name: delete-unconfirmed-subscriptions
 WITH optins AS (
