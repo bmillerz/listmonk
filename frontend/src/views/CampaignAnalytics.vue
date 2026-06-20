@@ -70,7 +70,7 @@
         <div class="column is-8">
           <div class="ca-card ca-card-full">
             <div class="ca-card-head">
-              <h3 class="title is-6">24-hour performance snapshot</h3>
+              <h3 class="title is-6">24-Hour Performance Snapshot</h3>
               <b-select v-model="snapshotMetric" size="is-small">
                 <option value="views">{{ $t('campaigns.views') }}</option>
                 <option value="clicks">{{ $t('campaigns.clicks') }}</option>
@@ -133,7 +133,7 @@
         <div class="column is-5">
           <div class="ca-card ca-card-full">
             <div class="ca-card-head">
-              <h3 class="title is-6">{{ $t('analytics.funnel') }}</h3>
+              <h3 class="title is-6">Engagement Funnel</h3>
             </div>
             <p class="ca-card-desc">How recipients progressed from delivered to opened to clicked.</p>
             <div class="ca-ladder">
@@ -154,7 +154,7 @@
         <div class="column is-7">
           <div class="ca-card ca-card-full">
             <div class="ca-card-head">
-              <h3 class="title is-6">{{ $t('analytics.topLinks') }}</h3>
+              <h3 class="title is-6">Top Clicked Links</h3>
             </div>
             <p class="ca-card-desc">The links that drew the most clicks in this campaign.</p>
             <table v-if="!isLoading && raw.links.length" class="table is-fullwidth is-hoverable ca-links-table">
