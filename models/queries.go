@@ -13,6 +13,8 @@ import (
 type Queries struct {
 	GetDashboardCharts *sqlx.Stmt `query:"get-dashboard-charts"`
 	GetDashboardCounts *sqlx.Stmt `query:"get-dashboard-counts"`
+	// BRAND: live dashboard extras (30-day growth + monthly bounce rate).
+	GetDashboardInsights *sqlx.Stmt `query:"get-dashboard-insights"`
 
 	InsertSubscriber                *sqlx.Stmt `query:"insert-subscriber"`
 	UpsertSubscriber                *sqlx.Stmt `query:"upsert-subscriber"`

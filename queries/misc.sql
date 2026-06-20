@@ -4,6 +4,47 @@ SELECT data FROM mat_dashboard_charts;
 -- name: get-dashboard-counts
 SELECT data FROM mat_dashboard_counts;
 
+-- name: get-dashboard-insights
+-- BRAND: live (non-materialized) dashboard extras. 30-day growth for subscribers
+-- (net new vs. the base 30 days ago) and messages sent (last 30d vs. prior 30d),
+-- plus a monthly bounce rate (bounces / sent, keyed to each campaign's send month)
+-- for the last 12 months. Complaints are excluded from the bounce count.
+WITH sub_growth AS (
+    SELECT
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS last30,
+        COUNT(*) FILTER (WHERE created_at <  NOW() - INTERVAL '30 days') AS base
+    FROM subscribers
+),
+msg_growth AS (
+    SELECT
+        COALESCE(SUM(sent) FILTER (WHERE started_at >= NOW() - INTERVAL '30 days'), 0) AS last30,
+        COALESCE(SUM(sent) FILTER (WHERE started_at >= NOW() - INTERVAL '60 days'
+                                     AND started_at <  NOW() - INTERVAL '30 days'), 0) AS prev30
+    FROM campaigns
+    WHERE status = 'finished'
+),
+camp_bounces AS (
+    SELECT campaign_id, COUNT(*) AS bounces FROM bounces WHERE type != 'complaint' GROUP BY campaign_id
+),
+bounce_monthly AS (
+    SELECT
+        DATE_TRUNC('month', c.started_at) AS month,
+        SUM(c.sent)                       AS sent,
+        COALESCE(SUM(cb.bounces), 0)      AS bounces
+    FROM campaigns c
+        LEFT JOIN camp_bounces cb ON cb.campaign_id = c.id
+    WHERE c.status = 'finished' AND c.started_at >= NOW() - INTERVAL '12 months'
+    GROUP BY 1
+    ORDER BY 1
+)
+SELECT JSON_BUILD_OBJECT(
+    'subscriberGrowth', (SELECT ROW_TO_JSON(sub_growth) FROM sub_growth),
+    'messageGrowth',    (SELECT ROW_TO_JSON(msg_growth) FROM msg_growth),
+    'bounceRates',      (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
+                                'month', month, 'sent', sent, 'bounces', bounces)), '[]'::json)
+                         FROM bounce_monthly)
+) AS data;
+
 -- name: get-settings
 SELECT JSON_OBJECT_AGG(key, value) AS settings FROM (SELECT * FROM settings ORDER BY key) t;
 

@@ -32,3 +32,15 @@ func (c *Core) GetDashboardCounts() (types.JSONText, error) {
 
 	return out, nil
 }
+
+// GetDashboardInsights returns live (non-materialized) dashboard extras: 30-day
+// growth for subscribers and messages, plus a monthly bounce-rate series.
+func (c *Core) GetDashboardInsights() (types.JSONText, error) {
+	var out types.JSONText
+	if err := c.q.GetDashboardInsights.Get(&out); err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "dashboard insights", "error", pqErrMsg(err)))
+	}
+
+	return out, nil
+}

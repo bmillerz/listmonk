@@ -113,6 +113,11 @@ export const getDashboardCharts = () => http.get(
   { loading: models.dashboard },
 );
 
+export const getDashboardInsights = () => http.get(
+  '/api/dashboard/insights',
+  { loading: models.dashboard },
+);
+
 // Lists.
 export const getLists = (params) => http.get(
   '/api/lists',

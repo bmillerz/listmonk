@@ -119,6 +119,16 @@ func (a *App) GetDashboardCounts(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetDashboardInsights returns live dashboard extras (30-day growth + monthly bounce rate).
+func (a *App) GetDashboardInsights(c echo.Context) error {
+	out, err := a.core.GetDashboardInsights()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // ReloadApp sends a reload signal to the app, causing a full restart.
 func (a *App) ReloadApp(c echo.Context) error {
 	go func() {
