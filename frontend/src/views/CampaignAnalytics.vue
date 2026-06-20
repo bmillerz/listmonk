@@ -71,8 +71,12 @@
           <div class="ca-card ca-card-full">
             <div class="ca-card-head">
               <h3 class="title is-6">24-hour performance snapshot</h3>
+              <b-select v-model="snapshotMetric" size="is-small">
+                <option value="views">{{ $t('campaigns.views') }}</option>
+                <option value="clicks">{{ $t('campaigns.clicks') }}</option>
+              </b-select>
             </div>
-            <p class="ca-card-desc">Unique opens and clicks per hour over the 24 hours after this campaign was sent.</p>
+            <p class="ca-card-desc">Unique {{ snapshotMetric === 'clicks' ? $t('campaigns.clicks') : $t('campaigns.views') }} per hour over the 24 hours after this campaign was sent.</p>
             <apexchart v-if="!isLoading" type="line" height="300" :options="engagementOptions"
               :series="engagementSeries" />
             <p class="ca-note">
@@ -210,6 +214,7 @@ export default Vue.extend({
       isLoading: false,
       queriedCampaigns: [],
       campaignSearch: '',
+      snapshotMetric: 'views',
 
       // Raw per-type time-series ([{ campaignId, count, timestamp }]) and the
       // link breakdown ([{ url, count }]), plus the matching click-through URLs.
@@ -306,10 +311,11 @@ export default Vue.extend({
     },
 
     engagementSeries() {
-      return [
-        { name: this.$t('campaigns.views'), data: this.pts('views') },
-        { name: this.$t('campaigns.clicks'), data: this.pts('clicks') },
-      ];
+      const isClicks = this.snapshotMetric === 'clicks';
+      return [{
+        name: isClicks ? this.$t('campaigns.clicks') : this.$t('campaigns.views'),
+        data: this.pts(this.snapshotMetric),
+      }];
     },
 
     engagementOptions() {
@@ -321,7 +327,7 @@ export default Vue.extend({
           zoom: { enabled: false },
           animations: { easing: 'easeinout', speed: 400 },
         },
-        colors: [C.opens, C.clicks],
+        colors: [this.snapshotMetric === 'clicks' ? C.clicks : C.opens],
         stroke: { curve: 'straight', width: 2 },
         markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
         dataLabels: { enabled: false },
@@ -337,9 +343,7 @@ export default Vue.extend({
           forceNiceScale: true,
           labels: { formatter: (v) => this.$utils.niceNumber(Math.round(v)), style: { colors: AXIS } },
         },
-        legend: {
-          show: true, position: 'top', horizontalAlign: 'right', fontFamily: 'inherit', markers: { radius: 6 },
-        },
+        legend: { show: false },
         tooltip: { x: { format: 'dd MMM HH:mm' }, theme: 'light' },
       };
     },
@@ -870,6 +874,12 @@ $muted: #6b7686;
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+// Thin the Buefy select chevron in card heads (its default 3px border is heavy).
+.ca-card-head ::v-deep .select:not(.is-multiple):not(.is-loading)::after {
+  border-bottom-width: 1.5px;
+  border-left-width: 1.5px;
 }
 
 .ca-note-empty {
