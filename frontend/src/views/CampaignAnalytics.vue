@@ -56,7 +56,9 @@
             <b-loading v-if="v.loading" :active="v.loading" :is-full-page="false" />
             <h4 v-if="v.chart !== null">
               {{ v.name }}
-              <span class="has-text-grey-light">({{ $utils.niceNumber(counts[k]) }})</span>
+              <span class="has-text-grey-light">({{ $utils.niceNumber(counts[k]) }}<template
+                v-if="countPercent(k) !== null"> &middot; <span
+                  :title="`${countPercent(k)}% of ${$utils.niceNumber(totalSent)} sent`">{{ countPercent(k) }}%</span></template>)</span>
             </h4>
             <chart :type="v.type" v-if="!v.loading" :data="v.data" :on-click="v.onClick" />
           </div>
@@ -300,10 +302,26 @@ export default Vue.extend({
         window.open(this.urls[bars[0].index], '_blank', 'noopener noreferrer');
       }
     },
+
+    // Rate (% of emails sent) for a metric, rounded to one decimal. Returns null
+    // for the links breakdown (a per-URL share, not a rate) and when nothing was
+    // sent yet (avoid divide-by-zero), in which case only the raw count shows.
+    countPercent(k) {
+      if (k === 'links' || !this.totalSent) {
+        return null;
+      }
+      return Math.round((this.counts[k] / this.totalSent) * 1000) / 10;
+    },
   },
 
   computed: {
     ...mapState(['serverConfig']),
+
+    // Total emails sent across the selected campaigns — the denominator for the
+    // rate percentages shown next to each metric's count.
+    totalSent() {
+      return this.form.campaigns.reduce((sum, c) => sum + (c.sent || 0), 0);
+    },
   },
 
   created() {
