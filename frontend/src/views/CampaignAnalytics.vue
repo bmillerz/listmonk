@@ -62,26 +62,32 @@
       <!-- Campaign context header. -->
       <header class="ca-camp-head">
         <div class="ca-camp-title">
-          <h2 class="title is-5">
-            <template v-if="isSingle">{{ campaign.name }}</template>
-            <template v-else>{{ form.campaigns.length }} {{ $tc('globals.terms.campaign', form.campaigns.length) }}</template>
-          </h2>
+          <div class="ca-title-row">
+            <h2 class="title is-5">
+              <template v-if="isSingle">{{ campaign.name }}</template>
+              <template v-else>{{ form.campaigns.length }} {{ $tc('globals.terms.campaign', form.campaigns.length) }}</template>
+            </h2>
+            <span v-if="isSingle && campaign.status" class="tag is-rounded ca-status"
+              :class="statusClass(campaign.status)">
+              {{ $t(`campaigns.status.${campaign.status}`) }}
+            </span>
+          </div>
           <p v-if="isSingle && campaign.subject" class="ca-subject">{{ campaign.subject }}</p>
         </div>
-        <div v-if="isSingle" class="ca-camp-meta">
-          <span class="tag is-rounded" :class="statusClass(campaign.status)">
-            {{ $t(`campaigns.status.${campaign.status}`) }}
-          </span>
-          <span v-if="campaign.startedAt" class="ca-meta-item">
-            <b-icon icon="clock-outline" size="is-small" /> {{ niceDateTime(campaign.startedAt) }}
-          </span>
-          <span class="ca-meta-item">
-            <b-icon icon="account-multiple" size="is-small" /> {{ $utils.niceNumber(campaign.sent) }}
-          </span>
-          <span v-if="campaign.lists && campaign.lists.length" class="ca-meta-item">
-            <b-icon icon="format-list-bulleted-square" size="is-small" /> {{ campaign.lists.map((l) => l.name).join(', ') }}
-          </span>
-        </div>
+        <dl v-if="isSingle" class="ca-camp-meta">
+          <div v-if="campaign.startedAt" class="ca-meta-item">
+            <dt>{{ $t('analytics.sent') }}</dt>
+            <dd>{{ niceDateTime(campaign.startedAt) }}</dd>
+          </div>
+          <div class="ca-meta-item">
+            <dt>{{ $t('analytics.recipients') }}</dt>
+            <dd>{{ $utils.niceNumber(campaign.sent) }}</dd>
+          </div>
+          <div v-if="campaign.lists && campaign.lists.length" class="ca-meta-item ca-meta-lists">
+            <dt>{{ $tc('globals.terms.list', campaign.lists.length) }}</dt>
+            <dd>{{ campaign.lists.map((l) => l.name).join(', ') }}</dd>
+          </div>
+        </dl>
       </header>
 
       <!-- KPI cards. -->
@@ -654,8 +660,14 @@ $white: #fff;
 $text-strong: #363636;
 
 .ca-controls {
-  padding: 0.75rem 1rem 0;
+  padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
+
+  // The inner .columns is :last-child, so Bulma gives it a -0.75rem bottom
+  // margin; cancel it so the box's bottom padding matches the top.
+  .columns:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .ca-empty {
@@ -678,32 +690,68 @@ $text-strong: #363636;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem 2.5rem;
+  margin-bottom: 1.75rem;
+}
 
-  .title {
-    margin-bottom: 0.25rem;
+.ca-camp-title {
+  min-width: 0;
+
+  .ca-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+
+    .title {
+      margin-bottom: 0;
+    }
   }
 
   .ca-subject {
     color: $grey;
     font-size: 0.95rem;
+    margin-top: 0.4rem;
   }
 }
 
+.ca-status {
+  font-weight: 600;
+}
+
+// Labelled metadata strip: small uppercase label above each value.
 .ca-camp-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 1rem;
-  color: $grey;
-  font-size: 0.9rem;
+  align-items: flex-start;
+  gap: 0.75rem 2rem;
+  margin: 0;
 
   .ca-meta-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
     min-width: 0;
+
+    dt {
+      font-size: 0.64rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: $grey-light;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: $text-strong;
+    }
+  }
+
+  .ca-meta-lists dd {
+    max-width: 24rem;
+    overflow-wrap: anywhere;
   }
 }
 
