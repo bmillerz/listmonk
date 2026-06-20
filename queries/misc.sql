@@ -63,14 +63,21 @@ email_window AS (
         LEFT JOIN ev_unsubs eu ON eu.campaign_id = cw.id
     GROUP BY cw.period
 ),
+-- Subscribers who have unsubscribed from at least one list — the canonical
+-- per-list opt-out state (true unsubscribes, not blocklist/complaint).
+unsub_subs AS (
+    SELECT DISTINCT subscriber_id FROM subscriber_lists WHERE status = 'unsubscribed'
+),
 -- Audience acquisition + churn by source attribute (subscribers.attribs->>'source').
+-- subscribers = active (enabled, not unsubscribed); unsubscribed = true opt-outs.
 audience_sources AS (
     SELECT
-        COALESCE(NULLIF(attribs->>'source', ''), 'unknown')             AS source,
-        COUNT(*) FILTER (WHERE status = 'enabled')                      AS subscribers,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new30,
-        COUNT(*) FILTER (WHERE status = 'blocklisted')                  AS unsubscribed
-    FROM subscribers
+        COALESCE(NULLIF(s.attribs->>'source', ''), 'unknown')                     AS source,
+        COUNT(*) FILTER (WHERE us.subscriber_id IS NULL AND s.status = 'enabled') AS subscribers,
+        COUNT(*) FILTER (WHERE s.created_at >= NOW() - INTERVAL '30 days')        AS new30,
+        COUNT(*) FILTER (WHERE us.subscriber_id IS NOT NULL)                      AS unsubscribed
+    FROM subscribers s
+        LEFT JOIN unsub_subs us ON us.subscriber_id = s.id
     GROUP BY 1
 )
 SELECT JSON_BUILD_OBJECT(
