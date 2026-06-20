@@ -37,7 +37,7 @@ bounce_monthly AS (
     GROUP BY 1
     ORDER BY 1
 ),
--- BRAND: account-level email performance for the current vs. prior 30-day window
+-- Account-level email performance for the current vs. prior 30-day window
 -- (campaigns finished in each window), so the dashboard KPI cards can show rates
 -- and their 30-day change. Opens/clicks counted as unique subscribers per campaign.
 cw AS (
