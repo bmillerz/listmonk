@@ -14,39 +14,25 @@
       </template>
     </div>
 
-    <!-- Controls: campaign picker + date range. -->
-    <form class="box ca-controls" @submit.prevent="onSubmit">
-      <div class="columns is-vcentered">
-        <div class="column is-5">
-          <b-field :label="$t('globals.terms.campaigns')" label-position="on-border">
-            <b-taginput v-model="form.campaigns" :data="queriedCampaigns" name="campaigns" ellipsis icon="tag-outline"
-              :placeholder="$t('globals.terms.campaigns')" autocomplete :allow-new="false" :open-on-focus="true"
-              :before-adding="isCampaignSelected" @typing="queryCampaigns" @focus="queryCampaigns" field="name"
-              :loading="isSearchLoading" />
-          </b-field>
-        </div>
-
-        <div class="column">
-          <div class="columns">
-            <div class="column is-6">
-              <b-field data-cy="from" :label="$t('analytics.fromDate')" label-position="on-border">
-                <b-datetimepicker v-model="form.from" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
-                  :datetime-formatter="formatDateTime" @input="onFromDateChange" />
-              </b-field>
-            </div>
-            <div class="column is-6">
-              <b-field data-cy="to" :label="$t('analytics.toDate')" label-position="on-border">
-                <b-datetimepicker v-model="form.to" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
-                  :datetime-formatter="formatDateTime" @input="onToDateChange" />
-              </b-field>
-            </div>
-          </div>
-        </div>
-
-        <div class="column is-narrow">
-          <b-button native-type="submit" type="is-primary" icon-left="magnify" :label="$t('globals.buttons.view')"
-            :disabled="form.campaigns.length === 0" data-cy="btn-search" />
-        </div>
+    <!-- Filters: campaign picker + date range. -->
+    <form class="ca-filters" @submit.prevent="onSubmit">
+      <div class="ca-filters-row">
+        <b-field class="ca-filters-camp" :label="$t('globals.terms.campaigns')" label-position="on-border">
+          <b-taginput v-model="form.campaigns" :data="queriedCampaigns" name="campaigns" ellipsis icon="tag-outline"
+            :placeholder="$t('globals.terms.campaigns')" autocomplete :allow-new="false" :open-on-focus="true"
+            :before-adding="isCampaignSelected" @typing="queryCampaigns" @focus="queryCampaigns" field="name"
+            :loading="isSearchLoading" />
+        </b-field>
+        <b-field class="ca-filters-date" data-cy="from" :label="$t('analytics.fromDate')" label-position="on-border">
+          <b-datetimepicker v-model="form.from" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
+            :datetime-formatter="formatDateTime" @input="onFromDateChange" />
+        </b-field>
+        <b-field class="ca-filters-date" data-cy="to" :label="$t('analytics.toDate')" label-position="on-border">
+          <b-datetimepicker v-model="form.to" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
+            :datetime-formatter="formatDateTime" @input="onToDateChange" />
+        </b-field>
+        <b-button class="ca-filters-btn" native-type="submit" type="is-primary" icon-left="magnify"
+          :label="$t('globals.buttons.view')" :disabled="form.campaigns.length === 0" data-cy="btn-search" />
       </div>
     </form>
 
@@ -197,19 +183,19 @@ import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueApexCharts from 'vue-apexcharts';
 
-// Semantic palette, drawn from listmonk's existing chart colours so the page
-// stays cohesive with the rest of the admin.
+// Tonal palette: engagement metrics are shades of listmonk's primary blue;
+// bounces/unsubscribes keep semantic error/warning tones.
 const C = {
   opens: '#0055d4',
-  clicks: '#41AC9C',
-  ctor: '#3a82d6',
-  delivered: '#6c8fd6',
-  bounces: '#ee7d5b',
-  unsubs: '#FFB50D',
+  clicks: '#4d8be8',
+  ctor: '#7aa9ee',
+  delivered: '#a7c8f4',
+  bounces: '#e0524d',
+  unsubs: '#e8a13c',
   neutral: '#8a97a8',
 };
-// Per-series palette for the multi-campaign overlay and the top-links bars.
-const SERIES_PALETTE = ['#0055d4', '#41AC9C', '#FFB50D', '#ee7d5b', '#7FC7BC', '#3a82d6', '#688ED9', '#FFC43D'];
+// Monochromatic blue ramp for the multi-campaign overlay and the top-links bars.
+const SERIES_PALETTE = ['#0055d4', '#2f74de', '#4d8be8', '#6ba0ed', '#88b5f1', '#1a3f8f', '#3a6fd0', '#a7c8f4'];
 const AXIS = '#8a97a8';
 const GRID = '#eef1f5';
 
@@ -659,14 +645,55 @@ $border: #dbdbdb;
 $white: #fff;
 $text-strong: #363636;
 
-.ca-controls {
-  padding: 1rem 1.25rem;
+// Filter toolbar: a subtle tinted panel (not a stark white box). Flexbox rather
+// than Bulma columns, so there are no negative margins to leak past the edges.
+.ca-filters {
+  background: #f7f9fc;
+  border: 1px solid #e7edf3;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
   margin-bottom: 1.5rem;
+}
 
-  // The inner .columns is :last-child, so Bulma gives it a -0.75rem bottom
-  // margin; cancel it so the box's bottom padding matches the top.
-  .columns:last-child {
+.ca-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.85rem 1rem;
+
+  // Spacing comes from the row gap, not the fields' own bottom margins.
+  ::v-deep .field {
     margin-bottom: 0;
+  }
+
+  // Make the date picker and its input fill the field width when stacked.
+  ::v-deep .dropdown,
+  ::v-deep .dropdown-trigger,
+  ::v-deep .control {
+    width: 100%;
+  }
+}
+
+.ca-filters-camp {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.ca-filters-date {
+  flex: 0 1 13rem;
+  min-width: 0;
+}
+
+.ca-filters-btn {
+  flex: 0 0 auto;
+}
+
+@media screen and (max-width: 768px) {
+  .ca-filters-camp,
+  .ca-filters-date,
+  .ca-filters-btn {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 
@@ -750,7 +777,7 @@ $text-strong: #363636;
   }
 
   .ca-meta-lists dd {
-    max-width: 24rem;
+    max-width: min(24rem, 100%);
     overflow-wrap: anywhere;
   }
 }
@@ -924,7 +951,19 @@ $text-strong: #363636;
   overflow-x: hidden;
 }
 
-::v-deep .apexcharts-canvas {
+// Cards clip any chart that momentarily renders wider than its container
+// (ApexCharts can size its SVG before the mobile layout settles).
+.ca-card,
+.ca-kpi {
+  overflow: hidden;
+}
+
+::v-deep .vue-apexcharts {
   max-width: 100%;
+}
+
+::v-deep .apexcharts-canvas,
+::v-deep .apexcharts-canvas svg {
+  max-width: 100% !important;
 }
 </style>
