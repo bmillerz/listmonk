@@ -454,7 +454,7 @@ export default Vue.extend({
       // Keep both threshold lines (2% caution, 5% risk) in view; grow if a month spikes past them.
       const yMax = Math.max(6, Math.ceil(dataMax * 1.2));
       // Always show a full trailing 12-month window, even when only a few months have data.
-      const xMin = dayjs().subtract(11, 'month').startOf('month').valueOf();
+      const xMin = dayjs().subtract(5, 'month').startOf('month').valueOf();
       const xMax = dayjs().endOf('month').valueOf();
       return {
         chart: {
@@ -508,7 +508,7 @@ export default Vue.extend({
           type: 'datetime',
           min: xMin,
           max: xMax,
-          tickAmount: 11,
+          tickAmount: 5,
           labels: { datetimeUTC: false, format: 'MMM yyyy', style: { colors: AXIS } },
           axisBorder: { show: false },
           axisTicks: { show: false },
