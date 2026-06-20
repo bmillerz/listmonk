@@ -62,6 +62,16 @@ email_window AS (
         LEFT JOIN ev_clicks ec ON ec.campaign_id = cw.id
         LEFT JOIN ev_unsubs eu ON eu.campaign_id = cw.id
     GROUP BY cw.period
+),
+-- Audience acquisition + churn by source attribute (subscribers.attribs->>'source').
+audience_sources AS (
+    SELECT
+        COALESCE(NULLIF(attribs->>'source', ''), 'unknown')             AS source,
+        COUNT(*) FILTER (WHERE status = 'enabled')                      AS subscribers,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new30,
+        COUNT(*) FILTER (WHERE status = 'blocklisted')                  AS unsubscribed
+    FROM subscribers
+    GROUP BY 1
 )
 SELECT JSON_BUILD_OBJECT(
     'subscriberGrowth', (SELECT ROW_TO_JSON(sub_growth) FROM sub_growth),
@@ -72,7 +82,10 @@ SELECT JSON_BUILD_OBJECT(
     'emailMetrics',     JSON_BUILD_OBJECT(
         'current', (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'current') t),
         'prior',   (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'prior') t)
-    )
+    ),
+    'audienceSources', (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
+                            'source', source, 'subscribers', subscribers, 'new30', new30, 'unsubscribed', unsubscribed)
+                            ORDER BY subscribers DESC), '[]'::json) FROM audience_sources)
 ) AS data;
 
 -- name: get-settings

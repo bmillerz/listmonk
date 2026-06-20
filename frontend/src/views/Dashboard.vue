@@ -73,22 +73,58 @@
             </div>
           </div>
           <div v-if="audience.netNew !== null" class="db-audience-growth">
-            <span class="db-audience-growth-value">+{{ $utils.niceNumber(audience.netNew) }}</span>
+            <span class="db-audience-growth-value">↑ {{ $utils.niceNumber(audience.netNew) }}</span>
             <span class="db-audience-growth-label">Net new subscribers · 30 days</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Monthly bounce rate (deliverability over time). -->
-    <div class="db-card relative">
-      <b-loading v-if="isChartsLoading" active :is-full-page="false" />
-      <div class="db-card-head">
-        <h3 class="title is-6">Historical Bounce Rate</h3>
+    <!-- Historical bounce rate + audience health by source. -->
+    <div class="columns">
+      <div class="column is-6">
+        <div class="db-card db-card-full relative">
+          <b-loading v-if="isChartsLoading" active :is-full-page="false" />
+          <div class="db-card-head">
+            <h3 class="title is-6">Historical Bounce Rate</h3>
+          </div>
+          <p class="db-card-desc">Monthly bounce rate — bounces as a share of messages sent.</p>
+          <apexchart v-if="bounceSeries" type="bar" height="240" :options="bounceOptions" :series="bounceSeries" />
+          <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+        </div>
       </div>
-      <p class="db-card-desc">Monthly bounce rate — bounces as a share of messages sent.</p>
-      <apexchart v-if="bounceSeries" type="bar" height="240" :options="bounceOptions" :series="bounceSeries" />
-      <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+      <div class="column is-6">
+        <div class="db-card db-card-full relative">
+          <b-loading v-if="isCountsLoading" active :is-full-page="false" />
+          <div class="db-card-head">
+            <h3 class="title is-6">Audience Health by Source</h3>
+          </div>
+          <p class="db-card-desc">New subscribers and churn (unsubscribed) by acquisition source.</p>
+          <table v-if="audienceSources.length" class="table is-fullwidth db-table">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th class="has-text-right">Subscribers</th>
+                <th class="has-text-right">New (30d)</th>
+                <th class="has-text-right">Unsub</th>
+                <th class="has-text-right">Churn</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in audienceSources" :key="s.source">
+                <td class="db-camp-name">{{ s.label }}</td>
+                <td class="has-text-right">{{ $utils.niceNumber(s.subscribers) }}</td>
+                <td class="has-text-right">{{ $utils.niceNumber(s.new30) }}</td>
+                <td class="has-text-right">{{ $utils.niceNumber(s.unsubscribed) }}</td>
+                <td class="has-text-right">
+                  <span class="db-churn" :class="churnClass(s.churn)">{{ s.churn }}%</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-else-if="!isCountsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Recent campaigns quick-look. -->
@@ -109,6 +145,7 @@
             <th>Status</th>
             <th>When</th>
             <th class="has-text-right">{{ $t('analytics.recipients') }}</th>
+            <th class="has-text-right">Delivered</th>
             <th class="has-text-right">Opens</th>
             <th class="has-text-right">Clicks</th>
             <th class="has-text-right">Bounces</th>
@@ -128,6 +165,7 @@
             </td>
             <td class="has-text-grey">{{ campaignWhen(c) }}</td>
             <td class="has-text-right">{{ c.sent ? $utils.niceNumber(c.sent) : '—' }}</td>
+            <td class="has-text-right">{{ c.sent ? $utils.niceNumber(c.sent - (c.bounces || 0)) : '—' }}</td>
             <td class="has-text-right">{{ c.views ? $utils.niceNumber(c.views) : '—' }}</td>
             <td class="has-text-right">{{ c.clicks ? $utils.niceNumber(c.clicks) : '—' }}</td>
             <td class="has-text-right">{{ c.bounces ? $utils.niceNumber(c.bounces) : '—' }}</td>
@@ -224,7 +262,13 @@ export default Vue.extend({
       const round1 = (v) => Math.round(v * 10) / 10;
       // Rate (%) for a window: delivery = (sends - bounces) / sends, else metric / sends.
       const rateOf = (m, kind) => {
-        if (!m || !m.sends) {
+        if (!m) {
+          return null;
+        }
+        if (kind === 'ctor') {
+          return m.opens ? (m.clicks / m.opens) * 100 : null;
+        }
+        if (!m.sends) {
           return null;
         }
         const num = kind === 'delivery' ? m.sends - m.bounces : m[kind];
@@ -238,17 +282,30 @@ export default Vue.extend({
       // higherIsBetter flips the good/bad colour — for unsub rate, up is bad.
       const rateDelta = (kind, higherIsBetter) => {
         const cr = rateOf(cur, kind);
-        const pr = rateOf(prior, kind);
-        if (cr === null || pr === null) {
+        if (cr === null) {
           return null;
+        }
+        const pr = rateOf(prior, kind);
+        if (pr === null) {
+          // No prior window — treat prior as zero and show the absolute count increase.
+          let cnt = cur[kind] || 0;
+          if (kind === 'delivery') {
+            cnt = cur.sends - cur.bounces;
+          } else if (kind === 'ctor') {
+            cnt = cur.clicks;
+          }
+          return { text: n(cnt), arrow: 'up', good: true };
         }
         const d = round1(cr - pr);
         const up = d >= 0;
         return { text: `${Math.abs(d)}pp`, arrow: up ? 'up' : 'down', good: higherIsBetter ? up : !up };
       };
       const sendsDelta = () => {
-        if (!cur || !prior || !prior.sends) {
+        if (!cur) {
           return null;
+        }
+        if (!prior || !prior.sends) {
+          return { text: n(cur.sends), arrow: 'up', good: true };
         }
         const d = round1(((cur.sends - prior.sends) / prior.sends) * 100);
         const up = d >= 0;
@@ -292,6 +349,15 @@ export default Vue.extend({
           sub: cur ? `${n(cur.clicks)} clicks` : '',
         },
         {
+          key: 'ctor',
+          label: 'Click-to-open rate',
+          color: '#7a6ff0',
+          value: fmtRate('ctor'),
+          delta: rateDelta('ctor', true),
+          deltaNote: '30d',
+          sub: cur ? `${n(cur.clicks)} of ${n(cur.opens)} opens` : '',
+        },
+        {
           key: 'unsubs',
           label: 'Unsub rate',
           color: '#e8a13c',
@@ -313,6 +379,20 @@ export default Vue.extend({
       return {
         total: s.total || 0, netNew, pct, blocklisted: s.blocklisted || 0, orphans: s.orphans || 0,
       };
+    },
+
+    // Acquisition + churn per source attribute, with a prettified label and a
+    // churn rate (unsubscribed / total ever acquired from that source).
+    audienceSources() {
+      const rows = (this.insights || {}).audienceSources || [];
+      return rows.map((r) => {
+        const ever = r.subscribers + r.unsubscribed;
+        return {
+          ...r,
+          label: r.source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          churn: ever ? Math.round((r.unsubscribed / ever) * 1000) / 10 : 0,
+        };
+      });
     },
 
     // Single series for the selected metric (views/clicks), daily over the past month.
@@ -385,7 +465,7 @@ export default Vue.extend({
           animations: { easing: 'easeinout', speed: 400 },
         },
         colors: ['#e0524d'],
-        plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+        plotOptions: { bar: { columnWidth: '10%', borderRadius: 2 } },
         stroke: { width: 0 },
         dataLabels: { enabled: false },
         grid: { borderColor: GRID, strokeDashArray: 4, padding: { left: 12, right: 12 } },
@@ -501,11 +581,24 @@ export default Vue.extend({
       }[status] || 'is-light';
     },
 
+    // Colour the churn rate: healthy < 5%, caution 5-10%, high > 10%.
+    churnClass(churn) {
+      if (churn >= 10) {
+        return 'is-bad';
+      }
+      if (churn >= 5) {
+        return 'is-warn';
+      }
+      return 'is-ok';
+    },
+
     // Most relevant timestamp per status: scheduled -> send time, otherwise start/create.
     campaignWhen(c) {
       const d = c.status === 'scheduled' ? c.sendAt : (c.startedAt || c.createdAt);
       return d ? this.$utils.niceDate(d) : '—';
     },
+
+    // A metric as a percentage of recipients (sent), one decimal; blank if not sent.
   },
 
   created() {
@@ -873,6 +966,22 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   width: 17px;
   height: 17px;
   vertical-align: middle;
+}
+
+.db-churn {
+  font-weight: 600;
+
+  &.is-ok {
+    color: #3fae6b;
+  }
+
+  &.is-warn {
+    color: #e8a13c;
+  }
+
+  &.is-bad {
+    color: #e0524d;
+  }
 }
 
 // Card-header "View all" links sit smaller next to the title (the table's
