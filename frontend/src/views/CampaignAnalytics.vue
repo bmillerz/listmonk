@@ -43,10 +43,6 @@
             <span class="ca-meta-k">{{ $t('analytics.sent') }}</span>
             <span class="ca-meta-v">{{ niceDateTime(campaign.startedAt) }}</span>
           </span>
-          <span class="ca-meta-item">
-            <span class="ca-meta-k">{{ $t('analytics.recipients') }}</span>
-            <span class="ca-meta-v">{{ $utils.niceNumber(campaign.sent) }}</span>
-          </span>
           <span v-if="campaign.lists && campaign.lists.length" class="ca-meta-item ca-meta-lists">
             <span class="ca-meta-k">{{ $tc('globals.terms.list', campaign.lists.length) }}</span>
             <span class="ca-meta-v">{{ campaign.lists.map((l) => l.name).join(', ') }}</span>
@@ -63,7 +59,8 @@
             <span class="ca-kpi-sub">{{ k.sub }}</span>
           </div>
           <div v-if="k.bar !== null" class="ca-kpi-bar">
-            <div class="ca-kpi-bar-fill" :style="{ width: `${Math.min(k.bar, 100)}%`, background: k.color }" />
+            <div class="ca-kpi-bar-fill"
+              :style="{ width: `${Math.min((k.bar / (k.barMax || 100)) * 100, 100)}%`, background: k.color }" />
           </div>
         </div>
       </div>
@@ -101,7 +98,23 @@
                 </div>
                 <div class="ca-gauge-foot">
                   <span class="ca-gauge-status" :style="{ color: g.statusColor }">
-                    <b-icon :icon="g.icon" size="is-small" /> {{ g.status }}
+                    <svg class="ca-gauge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <template v-if="g.statusKey === 'healthy'">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M8 12.5l2.6 2.6 5.2-5.7" />
+                      </template>
+                      <template v-else-if="g.statusKey === 'caution'">
+                        <path d="M12 4L20.5 19.5L3.5 19.5Z" />
+                        <path d="M12 10v4" />
+                        <path d="M12 17h.01" />
+                      </template>
+                      <template v-else>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7.5v5.5" />
+                        <path d="M12 16.5h.01" />
+                      </template>
+                    </svg>{{ g.status }}
                   </span>
                   <span class="ca-gauge-thresh">Acceptable &lt; {{ g.acceptable }}%</span>
                 </div>
@@ -129,9 +142,6 @@
                 </div>
                 <div class="ca-rung-track">
                   <div class="ca-rung-fill" :style="{ width: `${s.pct}%`, background: s.color }" />
-                </div>
-                <div v-if="s.step !== null" class="ca-rung-step">
-                  <span class="ca-rung-step-arrow">&#8627;</span> {{ s.step }}% of {{ s.from }}
                 </div>
               </div>
             </div>
@@ -277,6 +287,9 @@ export default Vue.extend({
           sub: `${this.$utils.niceNumber(this.counts.bounces)} ${this.$t('globals.terms.bounces').toLowerCase()}`,
           color: C.bounces,
           bar: this.rate(this.counts.bounces),
+          // Scale the bar to the deliverability bounce gauge (acceptable < 2%, at-risk 8%)
+          // so a low-but-meaningful bounce rate reads as a visible bar, not a sliver.
+          barMax: 8,
         },
         {
           key: 'unsub',
@@ -285,6 +298,9 @@ export default Vue.extend({
           sub: `${this.$utils.niceNumber(this.counts.unsubscribes)} ${this.$t('campaigns.unsubscribes').toLowerCase()}`,
           color: C.unsubs,
           bar: this.rate(this.counts.unsubscribes),
+          // Relative to email industry norms: a healthy unsub rate is well under 0.5%,
+          // ~2% is alarmingly high — so the bar fills against a 2% ceiling.
+          barMax: 2,
         },
       ];
     },
@@ -329,29 +345,27 @@ export default Vue.extend({
     },
 
     // Conversion funnel. `pct` (share of sent) drives the bar width so it tapers;
-    // `step` is the conversion from the previous stage — the actual drop-off.
     funnelStages() {
       const sent = this.totalSent;
       const delivered = Math.max(sent - this.counts.bounces, 0);
       const rel = (n, base) => (base ? Math.round((n / base) * 1000) / 10 : 0);
       const raw = [
         {
-          key: 'sent', label: this.$t('analytics.sent'), count: sent, color: '#cbd6e6', from: '',
+          key: 'sent', label: this.$t('analytics.sent'), count: sent, color: '#cbd6e6',
         },
         {
-          key: 'delivered', label: this.$t('analytics.delivered'), count: delivered, color: '#93b8ef', from: this.$t('analytics.sent').toLowerCase(),
+          key: 'delivered', label: this.$t('analytics.delivered'), count: delivered, color: '#93b8ef',
         },
         {
-          key: 'opened', label: this.$t('analytics.opened'), count: this.counts.views, color: '#3f7fe0', from: this.$t('analytics.delivered').toLowerCase(),
+          key: 'opened', label: this.$t('analytics.opened'), count: this.counts.views, color: '#3f7fe0',
         },
         {
-          key: 'clicked', label: this.$t('analytics.clicked'), count: this.counts.clicks, color: '#0a4fb8', from: this.$t('analytics.opened').toLowerCase(),
+          key: 'clicked', label: this.$t('analytics.clicked'), count: this.counts.clicks, color: '#0a4fb8',
         },
       ];
-      return raw.map((s, i) => ({
+      return raw.map((s) => ({
         ...s,
         pct: rel(s.count, sent),
-        step: i === 0 ? null : rel(s.count, raw[i - 1].count),
       }));
     },
 
@@ -387,31 +401,31 @@ export default Vue.extend({
           markPos: Math.min((bands[0].to / scaleMax) * 100, 100),
           status: band.status,
           statusColor: band.color,
-          icon: band.icon,
+          statusKey: band.icon,
           acceptable: bands[0].to,
         };
       };
       return [
         build('bounce', this.$t('analytics.bounceRate'), this.rate(this.counts.bounces), 8, [
           {
-            to: 2, color: GREEN, status: 'Healthy', icon: 'check-circle-outline',
+            to: 2, color: GREEN, status: 'Healthy', icon: 'healthy',
           },
           {
-            to: 5, color: AMBER, status: 'Caution', icon: 'alert-circle-outline',
+            to: 5, color: AMBER, status: 'Caution', icon: 'caution',
           },
           {
-            to: 8, color: RED, status: 'At risk', icon: 'alert-octagon-outline',
+            to: 8, color: RED, status: 'At risk', icon: 'risk',
           },
         ]),
         build('complaint', 'Complaint rate', this.rate(this.counts.complaints), 0.5, [
           {
-            to: 0.1, color: GREEN, status: 'Healthy', icon: 'check-circle-outline',
+            to: 0.1, color: GREEN, status: 'Healthy', icon: 'healthy',
           },
           {
-            to: 0.3, color: AMBER, status: 'Caution', icon: 'alert-circle-outline',
+            to: 0.3, color: AMBER, status: 'Caution', icon: 'caution',
           },
           {
-            to: 0.5, color: RED, status: 'At risk', icon: 'alert-octagon-outline',
+            to: 0.5, color: RED, status: 'At risk', icon: 'risk',
           },
         ]),
       ];
@@ -502,13 +516,17 @@ export default Vue.extend({
       this.fetchAll();
     },
 
-    // Fix the window to the campaign's first 24 hours (so the backend buckets hourly).
+    // Window = the campaign's first 24 hours, but capped at the present hour when
+    // 24h hasn't elapsed yet, so the chart stops at "now" instead of running on
+    // into empty future hours. (Still well under 7 days, so the backend buckets hourly.)
     setWindow() {
       const start = this.campaign.startedAt
         ? dayjs(this.campaign.startedAt).startOf('hour')
         : dayjs().subtract(24, 'hour').startOf('hour');
+      const end = start.add(24, 'hour');
+      const now = dayjs();
       this.form.from = start.toDate();
-      this.form.to = start.add(24, 'hour').toDate();
+      this.form.to = (end.isAfter(now) ? now : end).toDate();
     },
 
     fetchAll() {
@@ -995,6 +1013,12 @@ $muted: #6b7686;
   gap: 0.3rem;
 }
 
+.ca-gauge-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
 .ca-gauge-thresh {
   color: $muted;
 }
@@ -1052,17 +1076,6 @@ $muted: #6b7686;
     border-radius: 7px;
     min-width: 4px;
     transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .ca-rung-step {
-    margin-top: 0.35rem;
-    font-size: 0.72rem;
-    color: $muted;
-  }
-
-  .ca-rung-step-arrow {
-    color: $grey-lighter;
-    margin-right: 0.1rem;
   }
 }
 
