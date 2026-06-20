@@ -36,13 +36,43 @@ bounce_monthly AS (
     WHERE c.status = 'finished' AND c.started_at >= NOW() - INTERVAL '12 months'
     GROUP BY 1
     ORDER BY 1
+),
+-- BRAND: account-level email performance for the current vs. prior 30-day window
+-- (campaigns finished in each window), so the dashboard KPI cards can show rates
+-- and their 30-day change. Opens/clicks counted as unique subscribers per campaign.
+cw AS (
+    SELECT c.id, c.sent,
+        CASE WHEN c.started_at >= NOW() - INTERVAL '30 days' THEN 'current' ELSE 'prior' END AS period
+    FROM campaigns c
+    WHERE c.status = 'finished' AND c.started_at >= NOW() - INTERVAL '60 days'
+),
+ev_opens  AS (SELECT campaign_id, COUNT(DISTINCT subscriber_id) AS n FROM campaign_views GROUP BY 1),
+ev_clicks AS (SELECT campaign_id, COUNT(DISTINCT subscriber_id) AS n FROM link_clicks GROUP BY 1),
+ev_unsubs AS (SELECT campaign_id, COUNT(*) AS n FROM campaign_unsubscribes GROUP BY 1),
+email_window AS (
+    SELECT cw.period,
+        SUM(cw.sent)                 AS sends,
+        COALESCE(SUM(cb.bounces), 0) AS bounces,
+        COALESCE(SUM(eo.n), 0)       AS opens,
+        COALESCE(SUM(ec.n), 0)       AS clicks,
+        COALESCE(SUM(eu.n), 0)       AS unsubs
+    FROM cw
+        LEFT JOIN camp_bounces cb ON cb.campaign_id = cw.id
+        LEFT JOIN ev_opens  eo ON eo.campaign_id = cw.id
+        LEFT JOIN ev_clicks ec ON ec.campaign_id = cw.id
+        LEFT JOIN ev_unsubs eu ON eu.campaign_id = cw.id
+    GROUP BY cw.period
 )
 SELECT JSON_BUILD_OBJECT(
     'subscriberGrowth', (SELECT ROW_TO_JSON(sub_growth) FROM sub_growth),
     'messageGrowth',    (SELECT ROW_TO_JSON(msg_growth) FROM msg_growth),
     'bounceRates',      (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
                                 'month', month, 'sent', sent, 'bounces', bounces)), '[]'::json)
-                         FROM bounce_monthly)
+                         FROM bounce_monthly),
+    'emailMetrics',     JSON_BUILD_OBJECT(
+        'current', (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'current') t),
+        'prior',   (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'prior') t)
+    )
 ) AS data;
 
 -- name: get-settings

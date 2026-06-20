@@ -12,13 +12,11 @@
     <div class="db-kpis relative">
       <b-loading v-if="isCountsLoading" active :is-full-page="false" />
       <div v-for="k in kpiCards" :key="k.key" class="db-kpi" :style="{ '--accent': k.color }" :data-cy="k.key">
-        <span class="db-kpi-label">
-          <b-icon :icon="k.icon" size="is-small" /> {{ k.label }}
-        </span>
+        <span class="db-kpi-label">{{ k.label }}</span>
         <div class="db-kpi-valuerow">
           <span class="db-kpi-value">{{ k.value }}</span>
-          <span v-if="k.delta" class="db-kpi-delta" :class="`is-${k.delta.dir}`">
-            {{ k.delta.dir === 'up' ? '↑' : '↓' }} {{ k.delta.text }}
+          <span v-if="k.delta" class="db-kpi-delta" :class="k.delta.good ? 'is-up' : 'is-down'">
+            {{ k.delta.arrow === 'up' ? '↑' : '↓' }} {{ k.delta.text }}
             <span class="db-kpi-delta-note">{{ k.deltaNote }}</span>
           </span>
         </div>
@@ -26,26 +24,58 @@
       </div>
     </div>
 
-    <!-- Trend charts. -->
+    <!-- Monthly Performance Snapshot (views/clicks toggle) + audience snapshot. -->
     <div class="columns">
-      <div class="column is-6">
+      <div class="column is-8">
         <div class="db-card db-card-full relative">
           <b-loading v-if="isChartsLoading" active :is-full-page="false" />
+          <b-select v-model="chartMetric" size="is-small" class="db-toggle-select">
+            <option value="views">{{ $t('dashboard.campaignViews') }}</option>
+            <option value="clicks">{{ $t('dashboard.linkClicks') }}</option>
+          </b-select>
           <div class="db-card-head">
-            <h3 class="title is-6">{{ $t('dashboard.campaignViews') }}</h3>
+            <h3 class="title is-6">Monthly Performance Snapshot</h3>
           </div>
-          <apexchart v-if="viewsSeries" type="line" height="260" :options="chartOptions" :series="viewsSeries" />
+          <p class="db-card-desc">
+            {{ chartMetric === 'views' ? 'Daily campaign opens across your account, over the past month.'
+              : 'Daily link clicks across your account, over the past month.' }}
+          </p>
+          <apexchart v-if="chartSeries" type="line" height="260" :options="chartOptions" :series="chartSeries" />
           <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
         </div>
       </div>
-      <div class="column is-6">
-        <div class="db-card db-card-full relative">
-          <b-loading v-if="isChartsLoading" active :is-full-page="false" />
-          <div class="db-card-head">
-            <h3 class="title is-6">{{ $t('dashboard.linkClicks') }}</h3>
+      <div class="column is-4">
+        <div class="db-card db-card-full db-audience relative">
+          <b-loading v-if="isCountsLoading" active :is-full-page="false" />
+          <div class="db-card-head db-card-head--toggle">
+            <h3 class="title is-6">Audience</h3>
+            <router-link :to="{ name: 'subscribers' }" class="db-action">View all →</router-link>
           </div>
-          <apexchart v-if="clicksSeries" type="line" height="260" :options="chartOptions" :series="clicksSeries" />
-          <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+          <p class="db-card-desc">Your total subscribers and how the audience is growing.</p>
+          <div class="db-audience-main">
+            <div class="db-audience-valuerow">
+              <span class="db-audience-value">{{ $utils.niceNumber(audience.total) }}</span>
+              <span v-if="audience.pct !== null" class="db-audience-pct"
+                :class="audience.pct >= 0 ? 'is-up' : 'is-down'">
+                {{ audience.pct >= 0 ? '↑' : '↓' }} {{ Math.abs(audience.pct) }}%
+              </span>
+            </div>
+            <span class="db-audience-label">{{ $tc('globals.terms.subscriber', 2) }}</span>
+          </div>
+          <div class="db-audience-breakdown">
+            <div class="db-audience-stat">
+              <span class="db-audience-stat-val">{{ $utils.niceNumber(audience.blocklisted) }}</span>
+              <span class="db-audience-stat-lbl">{{ $t('subscribers.status.blocklisted') }}</span>
+            </div>
+            <div class="db-audience-stat">
+              <span class="db-audience-stat-val">{{ $utils.niceNumber(audience.orphans) }}</span>
+              <span class="db-audience-stat-lbl">{{ $t('dashboard.orphanSubs') }}</span>
+            </div>
+          </div>
+          <div v-if="audience.netNew !== null" class="db-audience-growth">
+            <span class="db-audience-growth-value">+{{ $utils.niceNumber(audience.netNew) }}</span>
+            <span class="db-audience-growth-label">Net new subscribers · 30 days</span>
+          </div>
         </div>
       </div>
     </div>
@@ -54,40 +84,66 @@
     <div class="db-card relative">
       <b-loading v-if="isChartsLoading" active :is-full-page="false" />
       <div class="db-card-head">
-        <h3 class="title is-6">Bounce rate (monthly)</h3>
+        <h3 class="title is-6">Historical Bounce Rate</h3>
       </div>
-      <apexchart v-if="bounceSeries" type="line" height="240" :options="bounceOptions" :series="bounceSeries" />
+      <p class="db-card-desc">Monthly bounce rate — bounces as a share of messages sent.</p>
+      <apexchart v-if="bounceSeries" type="bar" height="240" :options="bounceOptions" :series="bounceSeries" />
       <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
     </div>
 
     <!-- Recent campaigns quick-look. -->
     <div class="db-card relative">
       <b-loading v-if="isCampaignsLoading" active :is-full-page="false" />
-      <div class="db-card-head">
-        <h3 class="title is-6">Recent campaigns</h3>
+      <div class="db-card-head db-card-head--toggle">
+        <h3 class="title is-6">Recent Campaigns</h3>
+        <div class="db-head-actions">
+          <b-switch v-model="hideDrafts" size="is-small">Hide drafts</b-switch>
+          <router-link :to="{ name: 'campaigns' }" class="db-action">View all →</router-link>
+        </div>
       </div>
-      <table v-if="recentCampaigns.length" class="table is-fullwidth db-table">
+      <p class="db-card-desc">Your latest campaigns and their current status.</p>
+      <table v-if="visibleCampaigns.length" class="table is-fullwidth db-table">
         <thead>
           <tr>
             <th>Campaign</th>
             <th>Status</th>
             <th>When</th>
             <th class="has-text-right">{{ $t('analytics.recipients') }}</th>
-            <th />
+            <th class="has-text-right">Opens</th>
+            <th class="has-text-right">Clicks</th>
+            <th class="has-text-right">Bounces</th>
+            <th class="has-text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in recentCampaigns" :key="c.id">
-            <td class="db-camp-name">{{ c.name }}</td>
+          <tr v-for="c in visibleCampaigns" :key="c.id">
+            <td>
+              <div class="db-camp-name">{{ c.name }}</div>
+              <div v-if="c.lists && c.lists.length" class="db-camp-lists">
+                {{ c.lists.map((l) => l.name).join(', ') }}
+              </div>
+            </td>
             <td>
               <span class="tag is-rounded" :class="statusClass(c.status)">{{ $t(`campaigns.status.${c.status}`) }}</span>
             </td>
             <td class="has-text-grey">{{ campaignWhen(c) }}</td>
             <td class="has-text-right">{{ c.sent ? $utils.niceNumber(c.sent) : '—' }}</td>
+            <td class="has-text-right">{{ c.views ? $utils.niceNumber(c.views) : '—' }}</td>
+            <td class="has-text-right">{{ c.clicks ? $utils.niceNumber(c.clicks) : '—' }}</td>
+            <td class="has-text-right">{{ c.bounces ? $utils.niceNumber(c.bounces) : '—' }}</td>
             <td class="has-text-right">
               <router-link v-if="c.status === 'finished'" :to="{ name: 'campaignAnalytics', query: { id: c.id } }"
-                class="db-analytics-link">
-                <b-icon icon="chart-timeline-variant" size="is-small" /> {{ $t('analytics.title') }}
+                class="db-action" title="Analytics">
+                <svg class="db-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 20V13" /><path d="M12 20V5" /><path d="M19 20v-9" />
+                </svg>
+              </router-link>
+              <router-link v-else :to="{ name: 'campaign', params: { id: c.id } }" class="db-action" title="Edit">
+                <svg class="db-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z" /><path d="M13.5 6.5l3 3" />
+                </svg>
               </router-link>
             </td>
           </tr>
@@ -134,7 +190,9 @@ export default Vue.extend({
       isCampaignsLoading: true,
       campaignViews: null,
       campaignClicks: null,
+      chartMetric: 'views',
       recentCampaigns: [],
+      hideDrafts: false,
       insights: null,
       counts: {
         lists: {},
@@ -148,79 +206,123 @@ export default Vue.extend({
   computed: {
     ...mapState(['settings']),
 
-    // Headline metrics, each with a one-line breakdown as its sub-label.
+    // Always show 3, optionally hiding drafts. The fetch is over-sized so that
+    // three remain even after drafts are filtered out.
+    visibleCampaigns() {
+      const rows = this.hideDrafts
+        ? this.recentCampaigns.filter((c) => c.status !== 'draft')
+        : this.recentCampaigns;
+      return rows.slice(0, 3);
+    },
+
+    // Email performance over the last 30 days — rates and their 30-day change.
     kpiCards() {
-      const c = this.counts;
+      const em = (this.insights && this.insights.emailMetrics) || {};
+      const cur = em.current || null;
+      const prior = em.prior || null;
       const n = (v) => this.$utils.niceNumber(v || 0);
-      const ins = this.insights || {};
-      const sg = ins.subscriberGrowth;
-      const mg = ins.messageGrowth;
-      // Growth badge: a % once there's a prior-period baseline, otherwise the
-      // absolute 30-day figure (a young account has no 30-day-ago baseline yet).
-      // Subscribers compare net-new vs. the base; messages compare period-over-period.
-      const fmtDelta = (last30, baseline, periodOverPeriod) => {
-        if (baseline > 0) {
-          const change = periodOverPeriod ? last30 - baseline : last30;
-          const pct = Math.round((change / baseline) * 1000) / 10;
-          return { text: `${Math.abs(pct)}%`, dir: pct >= 0 ? 'up' : 'down' };
+      const round1 = (v) => Math.round(v * 10) / 10;
+      // Rate (%) for a window: delivery = (sends - bounces) / sends, else metric / sends.
+      const rateOf = (m, kind) => {
+        if (!m || !m.sends) {
+          return null;
         }
-        return { text: this.$utils.niceNumber(last30), dir: 'up' };
+        const num = kind === 'delivery' ? m.sends - m.bounces : m[kind];
+        return (num / m.sends) * 100;
       };
-      const subDelta = sg ? fmtDelta(sg.last30, sg.base, false) : null;
-      const msgDelta = mg ? fmtDelta(mg.last30, mg.prev30, true) : null;
-      const byStatus = c.campaigns.byStatus || {};
-      const statusSub = Object.entries(byStatus)
-        .filter(([, num]) => num > 0)
-        .map(([s, num]) => `${num} ${this.$t(`campaigns.status.${s}`)}`)
-        .join('  ·  ');
+      const fmtRate = (kind) => {
+        const r = rateOf(cur, kind);
+        return r === null ? '—' : `${round1(r)}%`;
+      };
+      // Percentage-point change vs. the prior 30-day window (null until one exists).
+      // higherIsBetter flips the good/bad colour — for unsub rate, up is bad.
+      const rateDelta = (kind, higherIsBetter) => {
+        const cr = rateOf(cur, kind);
+        const pr = rateOf(prior, kind);
+        if (cr === null || pr === null) {
+          return null;
+        }
+        const d = round1(cr - pr);
+        const up = d >= 0;
+        return { text: `${Math.abs(d)}pp`, arrow: up ? 'up' : 'down', good: higherIsBetter ? up : !up };
+      };
+      const sendsDelta = () => {
+        if (!cur || !prior || !prior.sends) {
+          return null;
+        }
+        const d = round1(((cur.sends - prior.sends) / prior.sends) * 100);
+        const up = d >= 0;
+        return { text: `${Math.abs(d)}%`, arrow: up ? 'up' : 'down', good: up };
+      };
       return [
         {
-          key: 'subscribers',
-          label: this.$tc('globals.terms.subscriber', 2),
-          icon: 'account-multiple',
+          key: 'sends',
+          label: 'Sends',
           color: C.subscribers,
-          value: n(c.subscribers.total),
-          delta: subDelta,
+          value: cur ? n(cur.sends) : '—',
+          delta: sendsDelta(),
           deltaNote: '30d',
-          sub: `${n(c.subscribers.blocklisted)} ${this.$t('subscribers.status.blocklisted')}`
-            + `  ·  ${n(c.subscribers.orphans)} ${this.$t('dashboard.orphanSubs')}`,
+          sub: 'last 30 days',
         },
         {
-          key: 'lists',
-          label: this.$tc('globals.terms.list', 2),
-          icon: 'format-list-bulleted-square',
-          color: C.lists,
-          value: n(c.lists.total),
-          sub: `${n(c.lists.public)} ${this.$t('lists.types.public')}`
-            + `  ·  ${n(c.lists.private)} ${this.$t('lists.types.private')}`,
-        },
-        {
-          key: 'campaigns',
-          label: this.$tc('globals.terms.campaign', 2),
-          icon: 'rocket-launch-outline',
-          color: C.campaigns,
-          value: n(c.campaigns.total),
-          sub: statusSub,
-        },
-        {
-          key: 'messages',
-          label: this.$t('dashboard.messagesSent'),
-          icon: 'email-outline',
+          key: 'delivery',
+          label: 'Delivery rate',
           color: C.messages,
-          value: n(c.messages),
-          delta: msgDelta,
+          value: fmtRate('delivery'),
+          delta: rateDelta('delivery', true),
           deltaNote: '30d',
-          sub: '',
+          sub: cur ? `${n(cur.sends - cur.bounces)} delivered` : '',
+        },
+        {
+          key: 'opens',
+          label: 'Open rate',
+          color: C.lists,
+          value: fmtRate('opens'),
+          delta: rateDelta('opens', true),
+          deltaNote: '30d',
+          sub: cur ? `${n(cur.opens)} opens` : '',
+        },
+        {
+          key: 'clicks',
+          label: 'Click rate',
+          color: C.campaigns,
+          value: fmtRate('clicks'),
+          delta: rateDelta('clicks', true),
+          deltaNote: '30d',
+          sub: cur ? `${n(cur.clicks)} clicks` : '',
+        },
+        {
+          key: 'unsubs',
+          label: 'Unsub rate',
+          color: '#e8a13c',
+          value: fmtRate('unsubs'),
+          delta: rateDelta('unsubs', false),
+          deltaNote: '30d',
+          sub: cur ? `${n(cur.unsubs)} unsubscribed` : '',
         },
       ];
     },
 
-    viewsSeries() {
-      return this.campaignViews ? [{ name: this.$t('dashboard.campaignViews'), data: this.campaignViews }] : null;
+    // Audience snapshot: subscriber total, % change vs. the base 30d ago (only
+    // once a baseline exists), and net new subscribers over the last 30 days.
+    audience() {
+      const s = this.counts.subscribers || {};
+      const sg = (this.insights || {}).subscriberGrowth;
+      const netNew = sg ? sg.last30 : null;
+      const pct = sg && sg.base > 0 ? Math.round((sg.last30 / sg.base) * 1000) / 10 : null;
+      return {
+        total: s.total || 0, netNew, pct, blocklisted: s.blocklisted || 0, orphans: s.orphans || 0,
+      };
     },
 
-    clicksSeries() {
-      return this.campaignClicks ? [{ name: this.$t('dashboard.linkClicks'), data: this.campaignClicks }] : null;
+    // Single series for the selected metric (views/clicks), daily over the past month.
+    chartSeries() {
+      const isViews = this.chartMetric === 'views';
+      const data = isViews ? this.campaignViews : this.campaignClicks;
+      if (!data) {
+        return null;
+      }
+      return [{ name: isViews ? this.$t('dashboard.campaignViews') : this.$t('dashboard.linkClicks'), data }];
     },
 
     chartOptions() {
@@ -232,7 +334,7 @@ export default Vue.extend({
           zoom: { enabled: false },
           animations: { easing: 'easeinout', speed: 400 },
         },
-        colors: [C.subscribers],
+        colors: [this.chartMetric === 'views' ? C.subscribers : C.lists],
         stroke: { curve: 'straight', width: 2 },
         markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
         dataLabels: { enabled: false },
@@ -266,28 +368,74 @@ export default Vue.extend({
     },
 
     bounceOptions() {
+      const rates = ((this.insights && this.insights.bounceRates) || [])
+        .map((m) => (m.sent ? (m.bounces / m.sent) * 100 : 0));
+      const dataMax = rates.length ? Math.max(...rates) : 0;
+      // Keep both threshold lines (2% caution, 5% risk) in view; grow if a month spikes past them.
+      const yMax = Math.max(6, Math.ceil(dataMax * 1.2));
+      // Always show a full trailing 12-month window, even when only a few months have data.
+      const xMin = dayjs().subtract(11, 'month').startOf('month').valueOf();
+      const xMax = dayjs().endOf('month').valueOf();
       return {
         chart: {
-          type: 'line',
+          type: 'bar',
           fontFamily: 'inherit',
           toolbar: { show: false },
           zoom: { enabled: false },
           animations: { easing: 'easeinout', speed: 400 },
         },
         colors: ['#e0524d'],
-        stroke: { curve: 'straight', width: 2 },
-        markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+        plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+        stroke: { width: 0 },
         dataLabels: { enabled: false },
         grid: { borderColor: GRID, strokeDashArray: 4, padding: { left: 12, right: 12 } },
+        // Acceptable-threshold guides, matching the analytics deliverability gauge.
+        annotations: {
+          yaxis: [
+            {
+              y: 2,
+              borderColor: '#e8a13c',
+              strokeDashArray: 5,
+              label: {
+                text: 'Caution 2%',
+                position: 'left',
+                textAnchor: 'start',
+                offsetY: 8,
+                borderColor: 'transparent',
+                style: {
+                  color: '#fff', background: '#e8a13c', fontSize: '10px', fontWeight: 600,
+                },
+              },
+            },
+            {
+              y: 5,
+              borderColor: '#e0524d',
+              strokeDashArray: 5,
+              label: {
+                text: 'At risk 5%',
+                position: 'left',
+                textAnchor: 'start',
+                offsetY: 8,
+                borderColor: 'transparent',
+                style: {
+                  color: '#fff', background: '#e0524d', fontSize: '10px', fontWeight: 600,
+                },
+              },
+            },
+          ],
+        },
         xaxis: {
           type: 'datetime',
+          min: xMin,
+          max: xMax,
+          tickAmount: 11,
           labels: { datetimeUTC: false, format: 'MMM yyyy', style: { colors: AXIS } },
           axisBorder: { show: false },
           axisTicks: { show: false },
         },
         yaxis: {
           min: 0,
-          forceNiceScale: true,
+          max: yMax,
           labels: { formatter: (v) => `${Math.round(v * 10) / 10}%`, style: { colors: AXIS } },
         },
         legend: { show: false },
@@ -313,7 +461,7 @@ export default Vue.extend({
       });
 
       this.$api.getCampaigns({
-        page: 1, per_page: 5, order_by: 'created_at', order: 'DESC',
+        page: 1, per_page: 15, order_by: 'created_at', order: 'DESC',
       }).then((data) => {
         this.recentCampaigns = data.results || [];
         this.isCampaignsLoading = false;
@@ -328,13 +476,18 @@ export default Vue.extend({
       });
     },
 
-    // ApexCharts datetime series: [[epochMs, count], ...]. Null when empty so the
-    // template shows the empty-state line instead of a blank chart.
+    // ApexCharts daily datetime series over the past month: [[epochMs, count], ...].
+    // Null when empty so the template shows the empty-state line instead of a blank chart.
     makeSeries(data) {
       if (!data || data.length === 0) {
         return null;
       }
-      return data.map((d) => [dayjs(d.date).valueOf(), d.count]);
+      const cutoff = dayjs().subtract(1, 'month').startOf('day').valueOf();
+      const pts = data
+        .map((d) => [dayjs(d.date).valueOf(), d.count])
+        .filter(([ms]) => ms >= cutoff)
+        .sort((a, b) => a[0] - b[0]);
+      return pts.length ? pts : null;
     },
 
     statusClass(status) {
@@ -380,7 +533,7 @@ $card-sh: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(16, 24, 40, 0.05);
 $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0.09);
 
 .db-topbar {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 
   .title {
     margin-bottom: 0.15rem;
@@ -398,6 +551,23 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 1.25rem;
   margin-bottom: 1.75rem;
+}
+
+// Uniform vertical rhythm: the chart row sits 1.75rem from its neighbours, like
+// the full-width cards (Bulma's default column margins would differ). Only the
+// vertical margins/padding are touched; the horizontal gutter stays intact.
+.columns {
+  margin-top: 0;
+  margin-bottom: 1.75rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .column {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
 }
 
 .db-kpi {
@@ -421,15 +591,20 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   .db-kpi-label {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-size: 0.66rem;
     font-weight: 700;
     color: $muted;
 
-    ::v-deep .icon {
-      color: var(--accent);
+    &::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: none;
     }
   }
 
@@ -485,13 +660,15 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   border-radius: $card-radius;
   padding: 1.4rem 1.5rem;
   box-shadow: $card-sh;
+  margin-bottom: 1.75rem;
 
   &.db-card-full {
     height: 100%;
+    margin-bottom: 0;
   }
 
   .db-card-head {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.3rem;
 
     .title {
       margin-bottom: 0;
@@ -499,6 +676,119 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
       font-weight: 700;
       color: $text-strong;
     }
+  }
+
+  // Metric toggle pulled out of the header flow (top-right) so the title and
+  // explainer keep the exact same spacing as every other card.
+  .db-toggle-select {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.5rem;
+    z-index: 2;
+  }
+
+  .db-card-desc {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: $muted;
+  }
+}
+
+// Audience snapshot card: big subscriber total + net-new growth at the foot.
+.db-audience {
+  display: flex;
+  flex-direction: column;
+
+  .db-audience-main {
+    margin-top: 0.5rem;
+  }
+
+  .db-audience-valuerow {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .db-audience-value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: $text-strong;
+  }
+
+  .db-audience-pct {
+    font-size: 0.9rem;
+    font-weight: 700;
+
+    &.is-up {
+      color: #3fae6b;
+    }
+
+    &.is-down {
+      color: #e0524d;
+    }
+  }
+
+  .db-audience-label {
+    display: block;
+    margin-top: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: $muted;
+  }
+
+  .db-audience-breakdown {
+    display: flex;
+    gap: 1.75rem;
+    margin-top: 1.1rem;
+
+    .db-audience-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .db-audience-stat-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: $text-strong;
+    }
+
+    .db-audience-stat-lbl {
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+      color: $muted;
+    }
+  }
+
+  .db-audience-growth {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #f0f2f6;
+  }
+
+  .db-audience-growth-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #3fae6b;
+  }
+
+  .db-audience-growth-label {
+    font-size: 0.72rem;
+    color: $muted;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
   }
 }
 
@@ -519,8 +809,19 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   }
 
   .db-camp-name {
-    font-weight: 600;
+    font-size: 0.9rem;
+    font-weight: 500;
     color: $text-strong;
+    max-width: 24rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .db-camp-lists {
+    margin-top: 0.1rem;
+    font-size: 0.74rem;
+    color: $muted;
     max-width: 24rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -532,8 +833,53 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   }
 }
 
-.db-analytics-link {
+.db-card-head--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.db-action {
+  color: $muted;
   white-space: nowrap;
+
+  &:hover {
+    color: $text-strong;
+  }
+}
+
+.db-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+
+  // Keep the toggle and its "Hide drafts" label on one line, vertically centred.
+  ::v-deep .switch {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0;
+    white-space: nowrap;
+  }
+
+  // Divider + spacing separating the toggle from the "View all" link.
+  .db-action {
+    padding-left: 0.9rem;
+    border-left: 1px solid #e7e9ee;
+  }
+}
+
+.db-action-icon {
+  width: 17px;
+  height: 17px;
+  vertical-align: middle;
+}
+
+// Card-header "View all" links sit smaller next to the title (the table's
+// row-action .db-action links are unaffected — they live in .db-table).
+.db-card-head .db-action {
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .db-empty {
