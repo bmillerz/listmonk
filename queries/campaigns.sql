@@ -257,13 +257,26 @@ SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), crea
     GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
 -- name: get-campaign-bounce-counts
+-- BRAND: bounces only (soft + hard). Complaints are a separate deliverability
+-- signal (the subscriber received the mail, then marked it spam) and are
+-- counted by get-campaign-complaint-counts instead.
 WITH intval AS (
     -- For intervals < a week, aggregate counts hourly, otherwise daily.
     SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
 )
 SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
     FROM bounces
-    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
+    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3 AND type != 'complaint'
+    GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+
+-- name: get-campaign-complaint-counts
+-- BRAND: spam-complaint counts (bounces of type 'complaint') for deliverability.
+WITH intval AS (
+    SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
+)
+SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
+    FROM bounces
+    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3 AND type = 'complaint'
     GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
 -- name: get-campaign-link-counts

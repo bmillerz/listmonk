@@ -1,0 +1,56 @@
+# Local dev stack: Postgres + the prebuilt fork backend image (no compiling).
+# The Vue frontend runs NATIVELY for hot-reload (Docker file-watching on macOS
+# is flaky), proxying /api to this backend:
+#
+#   docker compose -f dev/local.yml up -d        # start backend + db
+#   cd frontend && yarn dev                       # serves :8080 -> proxies to :9000
+#   open http://localhost:8080  (login: admin / listmonk123)
+#
+#   docker compose -f dev/local.yml down          # stop (keeps data)
+#   docker compose -f dev/local.yml down -v       # stop + wipe the dev DB
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: listmonk
+      POSTGRES_PASSWORD: listmonk
+      POSTGRES_DB: listmonk
+    ports: ["5432:5432"]
+    volumes: ["listmonk_local_db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listmonk"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: ghcr.io/bmillerz/listmonk:brand
+    depends_on:
+      db:
+        condition: service_healthy
+    # listmonk listens IPv6 (::) inside the container; OrbStack forwards this on
+    # ::1. The Vite dev proxy must therefore target http://[::1]:9000 — set via
+    # frontend/.env.local (LISTMONK_API_URL).
+    ports: ["9000:9000"]
+    command: [sh, -c, "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"]
+    environment:
+      LISTMONK_app__address: "0.0.0.0:9000"
+      LISTMONK_db__host: db
+      LISTMONK_db__port: "5432"
+      LISTMONK_db__user: listmonk
+      LISTMONK_db__password: listmonk
+      LISTMONK_db__database: listmonk
+      LISTMONK_db__ssl_mode: disable
+      LISTMONK_ADMIN_USER: admin
+      LISTMONK_ADMIN_PASSWORD: listmonk123
+
+  # Catch-all mail server so local campaign sends NEVER reach real inboxes.
+  # listmonk's SMTP is pointed at mailpit:1025 (see the smtp setting). View any
+  # "sent" mail at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["8025:8025"]
+    restart: unless-stopped
+
+volumes:
+  listmonk_local_db:

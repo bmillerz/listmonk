@@ -1,8 +1,14 @@
 <template>
   <section class="analytics content relative">
-    <h1 class="title is-4">
-      {{ $t('analytics.title') }}
-    </h1>
+    <!-- Title bar with a searchable campaign dropdown on the right. -->
+    <div class="ca-topbar">
+      <h1 class="title is-4">{{ $t('analytics.title') }}</h1>
+      <b-field class="ca-topbar-filter">
+        <b-autocomplete v-model="campaignSearch" :data="queriedCampaigns" field="name"
+          placeholder="Search a campaign…" icon="magnify" :loading="isSearchLoading" open-on-focus rounded clearable
+          @typing="queryCampaigns" @focus="queryCampaigns" @select="onCampaignSelect" />
+      </b-field>
+    </div>
 
     <div v-if="serverConfig.privacy.disable_tracking || !serverConfig.privacy.individual_tracking"
       class="notification is-warning is-light">
@@ -13,28 +19,6 @@
         {{ $t('analytics.nonIndividualTracking') }}
       </template>
     </div>
-
-    <!-- Filters: campaign picker + date range. -->
-    <form class="ca-filters" @submit.prevent="onSubmit">
-      <div class="ca-filters-row">
-        <b-field class="ca-filters-camp" :label="$t('globals.terms.campaigns')" label-position="on-border">
-          <b-taginput v-model="form.campaigns" :data="queriedCampaigns" name="campaigns" ellipsis icon="tag-outline"
-            :placeholder="$t('globals.terms.campaigns')" autocomplete :allow-new="false" :open-on-focus="true"
-            :before-adding="isCampaignSelected" @typing="queryCampaigns" @focus="queryCampaigns" field="name"
-            :loading="isSearchLoading" />
-        </b-field>
-        <b-field class="ca-filters-date" data-cy="from" :label="$t('analytics.fromDate')" label-position="on-border">
-          <b-datetimepicker v-model="form.from" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
-            :datetime-formatter="formatDateTime" @input="onFromDateChange" />
-        </b-field>
-        <b-field class="ca-filters-date" data-cy="to" :label="$t('analytics.toDate')" label-position="on-border">
-          <b-datetimepicker v-model="form.to" icon="calendar-clock" :timepicker="{ hourFormat: '24' }"
-            :datetime-formatter="formatDateTime" @input="onToDateChange" />
-        </b-field>
-        <b-button class="ca-filters-btn" native-type="submit" type="is-primary" icon-left="magnify"
-          :label="$t('globals.buttons.view')" :disabled="form.campaigns.length === 0" data-cy="btn-search" />
-      </div>
-    </form>
 
     <!-- Empty state. -->
     <div v-if="form.campaigns.length === 0" class="ca-empty">
@@ -47,33 +31,27 @@
 
       <!-- Campaign context header. -->
       <header class="ca-camp-head">
-        <div class="ca-camp-title">
-          <div class="ca-title-row">
-            <h2 class="title is-5">
-              <template v-if="isSingle">{{ campaign.name }}</template>
-              <template v-else>{{ form.campaigns.length }} {{ $tc('globals.terms.campaign', form.campaigns.length) }}</template>
-            </h2>
-            <span v-if="isSingle && campaign.status" class="tag is-rounded ca-status"
-              :class="statusClass(campaign.status)">
-              {{ $t(`campaigns.status.${campaign.status}`) }}
-            </span>
-          </div>
-          <p v-if="isSingle && campaign.subject" class="ca-subject">{{ campaign.subject }}</p>
+        <div class="ca-camp-title-row">
+          <h2 class="ca-camp-name">{{ campaign.name }}</h2>
+          <span v-if="campaign.status" class="tag is-rounded ca-status" :class="statusClass(campaign.status)">
+            {{ $t(`campaigns.status.${campaign.status}`) }}
+          </span>
         </div>
-        <dl v-if="isSingle" class="ca-camp-meta">
-          <div v-if="campaign.startedAt" class="ca-meta-item">
-            <dt>{{ $t('analytics.sent') }}</dt>
-            <dd>{{ niceDateTime(campaign.startedAt) }}</dd>
-          </div>
-          <div class="ca-meta-item">
-            <dt>{{ $t('analytics.recipients') }}</dt>
-            <dd>{{ $utils.niceNumber(campaign.sent) }}</dd>
-          </div>
-          <div v-if="campaign.lists && campaign.lists.length" class="ca-meta-item ca-meta-lists">
-            <dt>{{ $tc('globals.terms.list', campaign.lists.length) }}</dt>
-            <dd>{{ campaign.lists.map((l) => l.name).join(', ') }}</dd>
-          </div>
-        </dl>
+        <p v-if="campaign.subject" class="ca-subject">{{ campaign.subject }}</p>
+        <div class="ca-camp-meta">
+          <span v-if="campaign.startedAt" class="ca-meta-item">
+            <span class="ca-meta-k">{{ $t('analytics.sent') }}</span>
+            <span class="ca-meta-v">{{ niceDateTime(campaign.startedAt) }}</span>
+          </span>
+          <span class="ca-meta-item">
+            <span class="ca-meta-k">{{ $t('analytics.recipients') }}</span>
+            <span class="ca-meta-v">{{ $utils.niceNumber(campaign.sent) }}</span>
+          </span>
+          <span v-if="campaign.lists && campaign.lists.length" class="ca-meta-item ca-meta-lists">
+            <span class="ca-meta-k">{{ $tc('globals.terms.list', campaign.lists.length) }}</span>
+            <span class="ca-meta-v">{{ campaign.lists.map((l) => l.name).join(', ') }}</span>
+          </span>
+        </div>
       </header>
 
       <!-- KPI cards. -->
@@ -84,29 +62,63 @@
             <span class="ca-kpi-value">{{ k.value }}</span>
             <span class="ca-kpi-sub">{{ k.sub }}</span>
           </div>
-          <apexchart v-if="k.spark && !isLoading" type="area" height="34" :options="sparkOptions(k.color)"
-            :series="k.spark" />
+          <div v-if="k.bar !== null" class="ca-kpi-bar">
+            <div class="ca-kpi-bar-fill" :style="{ width: `${Math.min(k.bar, 100)}%`, background: k.color }" />
+          </div>
         </div>
       </div>
 
-      <!-- Hero: engagement over time. -->
-      <div class="ca-card">
-        <div class="ca-card-head">
-          <h3 class="title is-6">{{ $t('analytics.engagementOverTime') }}</h3>
+      <!-- Engagement snapshot (2/3) + deliverability health (1/3). -->
+      <div class="columns">
+        <div class="column is-8">
+          <div class="ca-card ca-card-full">
+            <div class="ca-card-head">
+              <h3 class="title is-6">24-hour performance snapshot</h3>
+            </div>
+            <p class="ca-card-desc">Unique opens and clicks per hour over the 24 hours after this campaign was sent.</p>
+            <apexchart v-if="!isLoading" type="line" height="300" :options="engagementOptions"
+              :series="engagementSeries" />
+            <p class="ca-note">
+              <b-icon icon="information-outline" size="is-small" /> {{ $t('analytics.opensIndicative') }}
+            </p>
+          </div>
         </div>
-        <apexchart v-if="!isLoading" type="area" height="320" :options="engagementOptions" :series="engagementSeries" />
-        <p class="ca-note">
-          <b-icon icon="information-outline" size="is-small" /> {{ $t('analytics.opensIndicative') }}
-        </p>
+        <div class="column is-4">
+          <div class="ca-card ca-card-full">
+            <div class="ca-card-head">
+              <h3 class="title is-6">{{ $t('analytics.deliverability') }}</h3>
+            </div>
+            <p class="ca-card-desc">How your bounce and complaint rates compare to acceptable sending thresholds.</p>
+            <div class="ca-health">
+              <div v-for="g in healthGauges" :key="g.key" class="ca-gauge">
+                <div class="ca-gauge-head">
+                  <span class="ca-gauge-label">{{ g.label }}</span>
+                  <span class="ca-gauge-value">{{ g.value }}%</span>
+                </div>
+                <div class="ca-gauge-track">
+                  <div class="ca-gauge-fill" :style="{ width: `${g.fill}%`, background: g.fillColor }" />
+                  <span class="ca-gauge-marker" :style="{ left: `${g.markPos}%` }" />
+                </div>
+                <div class="ca-gauge-foot">
+                  <span class="ca-gauge-status" :style="{ color: g.statusColor }">
+                    <b-icon :icon="g.icon" size="is-small" /> {{ g.status }}
+                  </span>
+                  <span class="ca-gauge-thresh">Acceptable &lt; {{ g.acceptable }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Single campaign: funnel + top links. -->
-      <div v-if="isSingle" class="columns">
+      <!-- Funnel + top links. -->
+      <div class="columns">
         <div class="column is-5">
           <div class="ca-card ca-card-full">
             <div class="ca-card-head">
               <h3 class="title is-6">{{ $t('analytics.funnel') }}</h3>
             </div>
+            <p class="ca-card-desc">How recipients progressed from delivered to opened to clicked.</p>
             <div class="ca-ladder">
               <div v-for="s in funnelStages" :key="s.key" class="ca-rung">
                 <div class="ca-rung-head">
@@ -118,6 +130,9 @@
                 <div class="ca-rung-track">
                   <div class="ca-rung-fill" :style="{ width: `${s.pct}%`, background: s.color }" />
                 </div>
+                <div v-if="s.step !== null" class="ca-rung-step">
+                  <span class="ca-rung-step-arrow">&#8627;</span> {{ s.step }}% of {{ s.from }}
+                </div>
               </div>
             </div>
           </div>
@@ -127,53 +142,30 @@
             <div class="ca-card-head">
               <h3 class="title is-6">{{ $t('analytics.topLinks') }}</h3>
             </div>
-            <apexchart v-if="!isLoading && raw.links.length" type="bar" :height="linksHeight" :options="linksOptions"
-              :series="linksSeries" />
+            <p class="ca-card-desc">The links that drew the most clicks in this campaign.</p>
+            <table v-if="!isLoading && raw.links.length" class="table is-fullwidth is-hoverable ca-links-table">
+              <thead>
+                <tr>
+                  <th>{{ $t('analytics.links') }}</th>
+                  <th class="has-text-right">{{ $t('campaigns.clicks') }}</th>
+                  <th class="has-text-right">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="l in topLinks" :key="l.url">
+                  <td class="ca-link-url">
+                    <a :href="l.url" target="_blank" rel="noopener noreferrer">{{ l.short }}</a>
+                  </td>
+                  <td class="has-text-right">{{ $utils.niceNumber(l.count) }}</td>
+                  <td class="has-text-right has-text-grey">{{ l.pct }}%</td>
+                </tr>
+              </tbody>
+            </table>
             <p v-else-if="!isLoading" class="ca-note-empty">{{ $t('analytics.noLinks') }}</p>
           </div>
         </div>
       </div>
-
-      <!-- Multiple campaigns: comparison table. -->
-      <div v-else class="ca-card">
-        <div class="ca-card-head">
-          <h3 class="title is-6">{{ $t('analytics.comparison') }}</h3>
-        </div>
-        <div class="table-container">
-        <table class="table is-fullwidth is-hoverable ca-table">
-          <thead>
-            <tr>
-              <th>{{ $tc('globals.terms.campaign', 1) }}</th>
-              <th class="has-text-right">{{ $t('analytics.recipients') }}</th>
-              <th class="has-text-right">{{ $t('analytics.openRate') }}</th>
-              <th class="has-text-right">{{ $t('analytics.clickRate') }}</th>
-              <th class="has-text-right">{{ $t('analytics.bounceRate') }}</th>
-              <th class="has-text-right">{{ $t('analytics.unsubRate') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in perCampaign" :key="c.id">
-              <td class="ca-table-name">{{ c.name }}</td>
-              <td class="has-text-right">{{ $utils.niceNumber(c.sent) }}</td>
-              <td class="has-text-right">{{ c.openRate }}%</td>
-              <td class="has-text-right">{{ c.clickRate }}%</td>
-              <td class="has-text-right">{{ c.bounceRate }}%</td>
-              <td class="has-text-right">{{ c.unsubRate }}%</td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </div>
-
-      <!-- Deliverability: bounces + unsubscribes over time. -->
-      <div class="ca-card">
-        <div class="ca-card-head">
-          <h3 class="title is-6">{{ $t('analytics.deliverability') }}</h3>
-        </div>
-        <apexchart v-if="!isLoading" type="area" height="220" :options="deliverabilityOptions"
-          :series="deliverabilitySeries" />
-      </div>
-    </div>
+</div>
   </section>
 </template>
 
@@ -194,8 +186,6 @@ const C = {
   unsubs: '#e8a13c',
   neutral: '#8a97a8',
 };
-// Monochromatic blue ramp for the multi-campaign overlay and the top-links bars.
-const SERIES_PALETTE = ['#0055d4', '#2f74de', '#4d8be8', '#6ba0ed', '#88b5f1', '#1a3f8f', '#3a6fd0', '#a7c8f4'];
 const AXIS = '#8a97a8';
 const GRID = '#eef1f5';
 
@@ -209,14 +199,15 @@ export default Vue.extend({
       isSearchLoading: false,
       isLoading: false,
       queriedCampaigns: [],
+      campaignSearch: '',
 
       // Raw per-type time-series ([{ campaignId, count, timestamp }]) and the
       // link breakdown ([{ url, count }]), plus the matching click-through URLs.
       raw: {
-        views: [], clicks: [], bounces: [], unsubscribes: [], links: [],
+        views: [], clicks: [], bounces: [], complaints: [], unsubscribes: [], links: [],
       },
       counts: {
-        views: 0, clicks: 0, bounces: 0, unsubscribes: 0, links: 0,
+        views: 0, clicks: 0, bounces: 0, complaints: 0, unsubscribes: 0, links: 0,
       },
       urls: [],
 
@@ -231,35 +222,29 @@ export default Vue.extend({
   computed: {
     ...mapState(['serverConfig']),
 
-    isSingle() {
-      return this.form.campaigns.length === 1;
-    },
-
     campaign() {
       return this.form.campaigns[0] || {};
     },
 
     // Denominator for all the rates.
     totalSent() {
-      return this.form.campaigns.reduce((sum, c) => sum + (c.sent || 0), 0);
+      return this.campaign.sent || 0;
     },
 
-    // The six headline metric cards.
+    // The headline metric cards. `bar` is the rate %, shown as a progress bar at
+    // the foot of the rate cards (null = no bar, e.g. recipients / click-to-open).
     kpiCards() {
       const opens = this.counts.views;
       const { clicks } = this.counts;
       const ctor = opens ? Math.round((clicks / opens) * 1000) / 10 : 0;
-
       return [
         {
           key: 'recipients',
           label: this.$t('analytics.recipients'),
           value: this.$utils.niceNumber(this.totalSent),
-          sub: this.isSingle && this.campaign.startedAt
-            ? this.niceDateTime(this.campaign.startedAt)
-            : this.$tc('globals.terms.campaign', this.form.campaigns.length),
+          sub: this.campaign.startedAt ? this.niceDateTime(this.campaign.startedAt) : '',
           color: C.neutral,
-          spark: null,
+          bar: null,
         },
         {
           key: 'open',
@@ -267,7 +252,7 @@ export default Vue.extend({
           value: `${this.rate(opens)}%`,
           sub: `${this.$utils.niceNumber(opens)} ${this.$t('campaigns.views').toLowerCase()}`,
           color: C.opens,
-          spark: this.spark('views'),
+          bar: this.rate(opens),
         },
         {
           key: 'click',
@@ -275,7 +260,7 @@ export default Vue.extend({
           value: `${this.rate(clicks)}%`,
           sub: `${this.$utils.niceNumber(clicks)} ${this.$t('campaigns.clicks').toLowerCase()}`,
           color: C.clicks,
-          spark: this.spark('clicks'),
+          bar: this.rate(clicks),
         },
         {
           key: 'ctor',
@@ -283,7 +268,7 @@ export default Vue.extend({
           value: `${ctor}%`,
           sub: this.$t('analytics.clicksPerOpen'),
           color: C.ctor,
-          spark: null,
+          bar: ctor,
         },
         {
           key: 'bounce',
@@ -291,7 +276,7 @@ export default Vue.extend({
           value: `${this.rate(this.counts.bounces)}%`,
           sub: `${this.$utils.niceNumber(this.counts.bounces)} ${this.$t('globals.terms.bounces').toLowerCase()}`,
           color: C.bounces,
-          spark: this.spark('bounces'),
+          bar: this.rate(this.counts.bounces),
         },
         {
           key: 'unsub',
@@ -299,179 +284,35 @@ export default Vue.extend({
           value: `${this.rate(this.counts.unsubscribes)}%`,
           sub: `${this.$utils.niceNumber(this.counts.unsubscribes)} ${this.$t('campaigns.unsubscribes').toLowerCase()}`,
           color: C.unsubs,
-          spark: this.spark('unsubscribes'),
+          bar: this.rate(this.counts.unsubscribes),
         },
       ];
     },
 
     engagementSeries() {
-      if (this.isSingle) {
-        return [
-          { name: this.$t('campaigns.views'), data: this.pts('views') },
-          { name: this.$t('campaigns.clicks'), data: this.pts('clicks') },
-        ];
-      }
-      return this.form.campaigns.map((c) => ({ name: c.name, data: this.ptsForCamp('views', c.id) }));
+      return [
+        { name: this.$t('campaigns.views'), data: this.pts('views') },
+        { name: this.$t('campaigns.clicks'), data: this.pts('clicks') },
+      ];
     },
 
     engagementOptions() {
-      return this.areaBase(this.isSingle ? [C.opens, C.clicks] : SERIES_PALETTE, 320);
-    },
-
-    // Conversion ladder stages (relative to sent), rendered as CSS progress bars.
-    funnelStages() {
-      const sent = this.totalSent;
-      const delivered = Math.max(sent - this.counts.bounces, 0);
-      const pct = (n) => (sent ? Math.round((n / sent) * 1000) / 10 : 0);
-      return [
-        {
-          key: 'sent', label: this.$t('analytics.sent'), count: sent, pct: 100, color: C.neutral,
-        },
-        {
-          key: 'delivered', label: this.$t('analytics.delivered'), count: delivered, pct: pct(delivered), color: C.delivered,
-        },
-        {
-          key: 'opened', label: this.$t('analytics.opened'), count: this.counts.views, pct: pct(this.counts.views), color: C.opens,
-        },
-        {
-          key: 'clicked', label: this.$t('analytics.clicked'), count: this.counts.clicks, pct: pct(this.counts.clicks), color: C.clicks,
-        },
-      ];
-    },
-
-    linksSeries() {
-      return [{ name: this.$t('campaigns.clicks'), data: this.raw.links.map((l) => l.count) }];
-    },
-
-    linksHeight() {
-      return Math.max(this.raw.links.length * 34 + 30, 160);
-    },
-
-    linksOptions() {
       return {
         chart: {
-          type: 'bar',
-          fontFamily: 'inherit',
-          toolbar: { show: false },
-          events: {
-            dataPointSelection: (e, ctx, cfg) => {
-              const u = this.urls[cfg.dataPointIndex];
-              if (u) {
-                window.open(u, '_blank', 'noopener noreferrer');
-              }
-            },
-          },
-        },
-        plotOptions: {
-          bar: {
-            horizontal: true, distributed: true, barHeight: '68%', borderRadius: 3,
-          },
-        },
-        colors: SERIES_PALETTE,
-        dataLabels: {
-          enabled: true,
-          textAnchor: 'start',
-          offsetX: 4,
-          formatter: (val) => this.$utils.niceNumber(val),
-          style: { colors: ['#fff'], fontSize: '11px', fontWeight: 600 },
-        },
-        xaxis: {
-          categories: this.raw.links.map((l) => this.shortUrl(l.url)),
-          labels: { style: { colors: AXIS } },
-          axisBorder: { show: false },
-          axisTicks: { show: false },
-        },
-        yaxis: { labels: { style: { colors: '#3b4754', fontSize: '12px' } } },
-        grid: { borderColor: GRID, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
-        legend: { show: false },
-        tooltip: { y: { title: { formatter: () => `${this.$t('campaigns.clicks')}:` } } },
-      };
-    },
-
-    deliverabilitySeries() {
-      return [
-        { name: this.$t('globals.terms.bounces'), data: this.pts('bounces') },
-        { name: this.$t('campaigns.unsubscribes'), data: this.pts('unsubscribes') },
-      ];
-    },
-
-    deliverabilityOptions() {
-      return this.areaBase([C.bounces, C.unsubs], 220);
-    },
-
-    // Per-campaign rate breakdown for the multi-campaign comparison table.
-    perCampaign() {
-      return this.form.campaigns.map((c) => {
-        const sum = (typ) => this.raw[typ]
-          .filter((d) => d.campaignId === c.id)
-          .reduce((s, d) => s + d.count, 0);
-        const r = (n) => (c.sent ? Math.round((n / c.sent) * 1000) / 10 : 0);
-        return {
-          id: c.id,
-          name: c.name,
-          sent: c.sent,
-          openRate: r(sum('views')),
-          clickRate: r(sum('clicks')),
-          bounceRate: r(sum('bounces')),
-          unsubRate: r(sum('unsubscribes')),
-        };
-      });
-    },
-  },
-
-  methods: {
-    // Rate of a count as a percentage of total sent, one decimal.
-    rate(n) {
-      return this.totalSent ? Math.round((n / this.totalSent) * 1000) / 10 : 0;
-    },
-
-    // Time-series points [ms, count] for a type, summed across the selected
-    // campaigns and bucketed by the backend's timestamp.
-    pts(typ) {
-      const m = {};
-      this.raw[typ].forEach((d) => {
-        const t = dayjs(d.timestamp).valueOf();
-        m[t] = (m[t] || 0) + d.count;
-      });
-      return Object.keys(m).map((t) => [Number(t), m[t]]).sort((a, b) => a[0] - b[0]);
-    },
-
-    ptsForCamp(typ, id) {
-      return this.raw[typ]
-        .filter((d) => d.campaignId === id)
-        .map((d) => [dayjs(d.timestamp).valueOf(), d.count])
-        .sort((a, b) => a[0] - b[0]);
-    },
-
-    spark(typ) {
-      const pts = this.pts(typ);
-      return pts.length ? [{ data: pts }] : null;
-    },
-
-    // Shared area-chart options so the hero and deliverability charts match.
-    areaBase(colors, height) {
-      return {
-        chart: {
-          type: 'area',
-          height,
+          type: 'line',
           fontFamily: 'inherit',
           toolbar: { show: false },
           zoom: { enabled: false },
           animations: { easing: 'easeinout', speed: 400 },
         },
-        colors,
+        colors: [C.opens, C.clicks],
+        stroke: { curve: 'straight', width: 2 },
+        markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
         dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 2 },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shadeIntensity: 1, opacityFrom: 0.32, opacityTo: 0.02, stops: [0, 95],
-          },
-        },
         grid: { borderColor: GRID, strokeDashArray: 4, padding: { left: 12, right: 12 } },
         xaxis: {
           type: 'datetime',
-          labels: { datetimeUTC: false, style: { colors: AXIS } },
+          labels: { datetimeUTC: false, format: 'HH:mm', style: { colors: AXIS } },
           axisBorder: { show: false },
           axisTicks: { show: false },
         },
@@ -487,14 +328,130 @@ export default Vue.extend({
       };
     },
 
-    sparkOptions(color) {
-      return {
-        chart: { type: 'area', sparkline: { enabled: true }, animations: { enabled: false } },
-        stroke: { curve: 'smooth', width: 1.5 },
-        fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
-        colors: [color],
-        tooltip: { enabled: false },
+    // Conversion funnel. `pct` (share of sent) drives the bar width so it tapers;
+    // `step` is the conversion from the previous stage — the actual drop-off.
+    funnelStages() {
+      const sent = this.totalSent;
+      const delivered = Math.max(sent - this.counts.bounces, 0);
+      const rel = (n, base) => (base ? Math.round((n / base) * 1000) / 10 : 0);
+      const raw = [
+        {
+          key: 'sent', label: this.$t('analytics.sent'), count: sent, color: '#cbd6e6', from: '',
+        },
+        {
+          key: 'delivered', label: this.$t('analytics.delivered'), count: delivered, color: '#93b8ef', from: this.$t('analytics.sent').toLowerCase(),
+        },
+        {
+          key: 'opened', label: this.$t('analytics.opened'), count: this.counts.views, color: '#3f7fe0', from: this.$t('analytics.delivered').toLowerCase(),
+        },
+        {
+          key: 'clicked', label: this.$t('analytics.clicked'), count: this.counts.clicks, color: '#0a4fb8', from: this.$t('analytics.opened').toLowerCase(),
+        },
+      ];
+      return raw.map((s, i) => ({
+        ...s,
+        pct: rel(s.count, sent),
+        step: i === 0 ? null : rel(s.count, raw[i - 1].count),
+      }));
+    },
+
+    // Top clicked links with each link's share of total clicks.
+    topLinks() {
+      const total = this.raw.links.reduce((s, l) => s + l.count, 0);
+      return this.raw.links.map((l) => ({
+        url: l.url,
+        short: this.shortUrl(l.url),
+        count: l.count,
+        pct: total ? Math.round((l.count / total) * 1000) / 10 : 0,
+      }));
+    },
+
+    // Deliverability health gauges: bounce/unsub rate against acceptable
+    // thresholds, with green/amber/red zones and a position marker (SES style).
+    healthGauges() {
+      // Muted, dashboard-matching status tones (not loud traffic-light colours).
+      const GREEN = '#5a9e7a';
+      const AMBER = '#d99e52';
+      const RED = '#d4625a';
+      const build = (key, label, value, scaleMax, bands) => {
+        // bands: [{ to, color, status, icon }] ascending; last `to` === scaleMax.
+        const band = bands.find((b) => value <= b.to) || bands[bands.length - 1];
+        return {
+          key,
+          label,
+          value,
+          // A single subtle bar filling to the rate, coloured by status; a thin
+          // marker shows the "acceptable" threshold line.
+          fill: Math.min((value / scaleMax) * 100, 100),
+          fillColor: band.color,
+          markPos: Math.min((bands[0].to / scaleMax) * 100, 100),
+          status: band.status,
+          statusColor: band.color,
+          icon: band.icon,
+          acceptable: bands[0].to,
+        };
       };
+      return [
+        build('bounce', this.$t('analytics.bounceRate'), this.rate(this.counts.bounces), 8, [
+          {
+            to: 2, color: GREEN, status: 'Healthy', icon: 'check-circle-outline',
+          },
+          {
+            to: 5, color: AMBER, status: 'Caution', icon: 'alert-circle-outline',
+          },
+          {
+            to: 8, color: RED, status: 'At risk', icon: 'alert-octagon-outline',
+          },
+        ]),
+        build('complaint', 'Complaint rate', this.rate(this.counts.complaints), 0.5, [
+          {
+            to: 0.1, color: GREEN, status: 'Healthy', icon: 'check-circle-outline',
+          },
+          {
+            to: 0.3, color: AMBER, status: 'Caution', icon: 'alert-circle-outline',
+          },
+          {
+            to: 0.5, color: RED, status: 'At risk', icon: 'alert-octagon-outline',
+          },
+        ]),
+      ];
+    },
+  },
+
+  methods: {
+    // Rate of a count as a percentage of total sent, one decimal.
+    rate(n) {
+      return this.totalSent ? Math.round((n / this.totalSent) * 1000) / 10 : 0;
+    },
+
+    // Dense hourly time-series [ms, count] across the whole window, so lines plot
+    // ZERO for hours with no activity instead of stopping at the last data point.
+    pts(typ) {
+      const HOUR = 3600000;
+      const m = {};
+      let anchor = null;
+      this.raw[typ].forEach((d) => {
+        const t = dayjs(d.timestamp).valueOf();
+        m[t] = (m[t] || 0) + d.count;
+        if (anchor === null || t < anchor) {
+          anchor = t;
+        }
+      });
+      if (!this.form.from || !this.form.to) {
+        return Object.keys(m).map((t) => [Number(t), m[t]]).sort((a, b) => a[0] - b[0]);
+      }
+      // Align the grid to a real data bucket so it matches the backend's hour
+      // boundaries regardless of the DB session timezone; fall back to the hour
+      // floor when this metric has no data of its own.
+      const fromMs = dayjs(this.form.from).valueOf();
+      const toMs = dayjs(this.form.to).valueOf();
+      const base = anchor !== null ? anchor : Math.floor(fromMs / HOUR) * HOUR;
+      const start = base - Math.ceil((base - fromMs) / HOUR) * HOUR;
+      const out = [];
+      for (let t = start; t <= toMs; t += HOUR) {
+        out.push([t, m[t] || 0]);
+      }
+      return out;
     },
 
     statusClass(status) {
@@ -510,22 +467,6 @@ export default Vue.extend({
 
     niceDateTime(d) {
       return dayjs(d).format('D MMM YYYY, HH:mm');
-    },
-
-    onFromDateChange() {
-      if (this.form.from > this.form.to) {
-        this.form.to = dayjs(this.form.from).add(7, 'day').toDate();
-      }
-    },
-
-    onToDateChange() {
-      if (this.form.from > this.form.to) {
-        this.form.from = dayjs(this.form.to).add(-7, 'day').toDate();
-      }
-    },
-
-    formatDateTime(s) {
-      return dayjs(s).format('YYYY-MM-DD HH:mm');
     },
 
     isCampaignSelected(camp) {
@@ -546,23 +487,28 @@ export default Vue.extend({
       this.isSearchLoading = true;
       this.$api.getCampaigns({ query: q, order_by: 'created_at', order: 'DESC' }).then((data) => {
         this.isSearchLoading = false;
-        this.queriedCampaigns = data.results.map((c) => {
-          const camp = c;
-          camp.name = `#${c.id}: ${c.name}`;
-          return camp;
-        });
+        this.queriedCampaigns = data.results;
       });
     },
 
-    onSubmit() {
-      this.$router.push({
-        query: {
-          id: this.form.campaigns.map((c) => c.id),
-          from: dayjs(this.form.from).unix(),
-          to: dayjs(this.form.to).unix(),
-        },
-      }).catch(() => {});
+    onCampaignSelect(camp) {
+      if (!camp) {
+        this.form.campaigns = [];
+        return;
+      }
+      this.form.campaigns = [camp];
+      this.setWindow();
+      this.$router.push({ query: { id: camp.id } }).catch(() => {});
       this.fetchAll();
+    },
+
+    // Fix the window to the campaign's first 24 hours (so the backend buckets hourly).
+    setWindow() {
+      const start = this.campaign.startedAt
+        ? dayjs(this.campaign.startedAt).startOf('hour')
+        : dayjs().subtract(24, 'hour').startOf('hour');
+      this.form.from = start.toDate();
+      this.form.to = start.add(24, 'hour').toDate();
     },
 
     fetchAll() {
@@ -580,6 +526,7 @@ export default Vue.extend({
         views: this.$api.getCampaignViewCounts,
         clicks: this.$api.getCampaignClickCounts,
         bounces: this.$api.getCampaignBounceCounts,
+        complaints: this.$api.getCampaignComplaintCounts,
         unsubscribes: this.$api.getCampaignUnsubscribeCounts,
         links: this.$api.getCampaignLinkCounts,
       };
@@ -606,6 +553,10 @@ export default Vue.extend({
           }
           this.form.campaigns.push(d.value);
         });
+        if (this.campaign.name) {
+          this.campaignSearch = this.campaign.name;
+        }
+        this.setWindow();
         this.$nextTick(() => {
           this.isSearchLoading = false;
           this.fetchAll();
@@ -615,10 +566,6 @@ export default Vue.extend({
   },
 
   created() {
-    const now = dayjs().set('hour', 23).set('minute', 59).set('seconds', 0);
-    const weekAgo = now.subtract(7, 'day').set('hour', 0).set('minute', 0);
-    this.form.from = (this.$route.query.from ? dayjs.unix(this.$route.query.from) : weekAgo).toDate();
-    this.form.to = (this.$route.query.to ? dayjs.unix(this.$route.query.to) : now).toDate();
     this.$root.$on('page.refresh', this.fetchAll);
   },
 
@@ -643,57 +590,40 @@ $grey-light: #b5b5b5;
 $grey-lighter: #dbdbdb;
 $border: #dbdbdb;
 $white: #fff;
-$text-strong: #363636;
+$text-strong: #1f2937;
+
+// Refined card tokens: hairline border + soft layered shadow, generous radius.
+$card-radius: 14px;
+$card-bd: 1px solid #ebeef3;
+$card-sh: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(16, 24, 40, 0.05);
+$card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0.09);
+$muted: #6b7686;
 
 // Filter toolbar: a subtle tinted panel (not a stark white box). Flexbox rather
 // than Bulma columns, so there are no negative margins to leak past the edges.
-.ca-filters {
-  background: #f7f9fc;
-  border: 1px solid #e7edf3;
-  border-radius: 10px;
-  padding: 1rem 1.1rem;
-  margin-bottom: 1.5rem;
-}
-
-.ca-filters-row {
+// Title bar: page title left, a low-key searchable campaign dropdown right.
+.ca-topbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.85rem 1rem;
+  gap: 0.6rem 1rem;
+  margin-bottom: 1.5rem;
 
-  // Spacing comes from the row gap, not the fields' own bottom margins.
-  ::v-deep .field {
+  .title {
     margin-bottom: 0;
   }
-
-  // Make the date picker and its input fill the field width when stacked.
-  ::v-deep .dropdown,
-  ::v-deep .dropdown-trigger,
-  ::v-deep .control {
-    width: 100%;
-  }
 }
 
-.ca-filters-camp {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-
-.ca-filters-date {
-  flex: 0 1 13rem;
-  min-width: 0;
-}
-
-.ca-filters-btn {
-  flex: 0 0 auto;
+.ca-topbar-filter {
+  margin-bottom: 0;
+  flex: 0 1 320px;
+  min-width: 220px;
 }
 
 @media screen and (max-width: 768px) {
-  .ca-filters-camp,
-  .ca-filters-date,
-  .ca-filters-btn {
+  .ca-topbar-filter {
     flex: 1 1 100%;
-    width: 100%;
   }
 }
 
@@ -713,71 +643,67 @@ $text-strong: #363636;
 }
 
 .ca-camp-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem 2.5rem;
   margin-bottom: 1.75rem;
 }
 
-.ca-camp-title {
-  min-width: 0;
+.ca-camp-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
 
-  .ca-title-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-
-    .title {
-      margin-bottom: 0;
-    }
-  }
-
-  .ca-subject {
-    color: $grey;
-    font-size: 0.95rem;
-    margin-top: 0.4rem;
-  }
+.ca-camp-name {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: $text-strong;
 }
 
 .ca-status {
   font-weight: 600;
 }
 
-// Labelled metadata strip: small uppercase label above each value.
+.ca-subject {
+  color: $grey;
+  font-size: 0.95rem;
+  margin-top: 0.35rem;
+}
+
+// Inline label-value metadata strip.
 .ca-camp-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.75rem 2rem;
-  margin: 0;
+  align-items: baseline;
+  gap: 0.4rem 1.75rem;
+  margin-top: 0.95rem;
 
   .ca-meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
     min-width: 0;
-
-    dt {
-      font-size: 0.64rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: $grey-light;
-    }
-
-    dd {
-      margin: 0;
-      font-size: 0.92rem;
-      font-weight: 500;
-      color: $text-strong;
-    }
   }
 
-  .ca-meta-lists dd {
-    max-width: min(24rem, 100%);
+  .ca-meta-k {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: $grey-light;
+    white-space: nowrap;
+  }
+
+  .ca-meta-v {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: $text-strong;
+  }
+
+  .ca-meta-lists .ca-meta-v {
+    max-width: min(28rem, 100%);
     overflow-wrap: anywhere;
   }
 }
@@ -785,81 +711,137 @@ $text-strong: #363636;
 // KPI cards: a responsive auto-fitting row.
 .ca-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 1.1rem;
+  margin-bottom: 1.75rem;
 }
 
 .ca-kpi {
   --accent: #{$grey};
+  position: relative;
   background: $white;
-  border: 1px solid $border;
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  padding: 0.9rem 1rem 0.4rem;
-  box-shadow: 0 1px 2px rgba(10, 30, 60, 0.04);
+  border: $card-bd;
+  border-radius: $card-radius;
+  padding: 1.15rem 1.25rem 1.1rem;
+  box-shadow: $card-sh;
   display: flex;
   flex-direction: column;
-  min-height: 104px;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  min-height: 118px;
+  overflow: hidden;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(10, 30, 60, 0.08);
-    transform: translateY(-1px);
+    box-shadow: $card-sh-hover;
+    transform: translateY(-2px);
   }
 
   .ca-kpi-top {
     display: flex;
     flex-direction: column;
+    gap: 0.15rem;
   }
 
   .ca-kpi-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: $grey;
+    letter-spacing: 0.05em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: $muted;
+
+    &::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: none;
+    }
   }
 
   .ca-kpi-value {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
     color: $text-strong;
   }
 
   .ca-kpi-sub {
     font-size: 0.78rem;
-    color: $grey;
+    color: $muted;
   }
 
-  ::v-deep .vue-apexcharts {
+  // Rate progress bar at the foot of the card (replaces the old sparkline).
+  .ca-kpi-bar {
     margin-top: auto;
+    height: 8px;
+    border-radius: 4px;
+    background: #eef2f7;
+    overflow: hidden;
+  }
+
+  .ca-kpi-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
 // Chart cards.
 .ca-card {
   background: $white;
-  border: 1px solid $border;
-  border-radius: 8px;
-  padding: 1.1rem 1.25rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 2px rgba(10, 30, 60, 0.04);
+  border: $card-bd;
+  border-radius: $card-radius;
+  padding: 1.4rem 1.5rem;
+  margin-bottom: 1.75rem;
+  box-shadow: $card-sh;
 
   &.ca-card-full {
-    height: calc(100% - 1.5rem);
+    height: 100%;
+    margin-bottom: 0;
   }
 
   .ca-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 
     .title {
       margin-bottom: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: $text-strong;
     }
+  }
+
+  // Explainer line under the card title.
+  .ca-card-desc {
+    margin: 0 0 1.25rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: $muted;
+  }
+}
+
+// Uniform vertical rhythm: normalise Bulma's .columns margins + the column
+// vertical padding so the chart rows sit the same 1.75rem apart as the KPI grid
+// and standalone cards (they were over-spaced by the stacked margins).
+.ca-body .columns {
+  margin-top: 0;
+  margin-bottom: 1.75rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .column {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 }
 
@@ -888,14 +870,143 @@ $text-strong: #363636;
   }
 }
 
+.ca-links-table {
+  table-layout: fixed;
+  background: transparent;
+
+  thead th {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #eef2f7;
+    padding: 0 0.6rem 0.55rem;
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $muted;
+  }
+
+  tbody td {
+    border: none;
+    border-bottom: 1px solid #f3f5f9;
+    padding: 0.72rem 0.6rem;
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background: #f8fafc;
+  }
+
+  // The URL column flexes and truncates; count/% columns stay narrow.
+  .ca-link-url {
+    max-width: 0;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    a {
+      color: #0055d4;
+      font-weight: 500;
+    }
+  }
+
+  td:nth-child(2) {
+    font-weight: 600;
+    color: $text-strong;
+  }
+
+  th:not(:first-child), td:not(:first-child) {
+    width: 5.5rem;
+    white-space: nowrap;
+  }
+}
+
+// Deliverability health gauges: rate vs. acceptable threshold (SES style).
+.ca-health {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding-top: 0.25rem;
+}
+
+.ca-gauge-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.45rem;
+}
+
+.ca-gauge-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $muted;
+}
+
+.ca-gauge-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: $text-strong;
+}
+
+.ca-gauge-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: #eef2f7;
+}
+
+.ca-gauge-fill {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 3px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+// Thin, subtle "acceptable threshold" marker.
+.ca-gauge-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 1px;
+  background: #aab2bf;
+  transform: translateX(-1px);
+}
+
+.ca-gauge-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.ca-gauge-status {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ca-gauge-thresh {
+  color: $muted;
+}
+
 // Conversion ladder (replaces the funnel chart): labelled CSS progress bars.
 .ca-ladder {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1.15rem;
   height: 100%;
-  padding: 0.4rem 0;
+  padding: 0.25rem 0;
 }
 
 .ca-rung {
@@ -904,19 +1015,19 @@ $text-strong: #363636;
     justify-content: space-between;
     align-items: baseline;
     gap: 0.5rem;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.45rem;
   }
 
   .ca-rung-label {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.68rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: $grey;
+    letter-spacing: 0.05em;
+    color: $muted;
   }
 
   .ca-rung-val {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 700;
     color: $text-strong;
     white-space: nowrap;
@@ -925,30 +1036,42 @@ $text-strong: #363636;
   .ca-rung-pct {
     font-size: 0.8rem;
     font-weight: 600;
-    color: $grey;
+    color: $muted;
     margin-left: 0.4rem;
   }
 
   .ca-rung-track {
-    height: 12px;
-    border-radius: 6px;
-    background: #f1f4f8;
+    height: 14px;
+    border-radius: 7px;
+    background: #eef2f7;
     overflow: hidden;
   }
 
   .ca-rung-fill {
     height: 100%;
-    border-radius: 6px;
-    min-width: 2px;
-    transition: width 0.5s ease;
+    border-radius: 7px;
+    min-width: 4px;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .ca-rung-step {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: $muted;
+  }
+
+  .ca-rung-step-arrow {
+    color: $grey-lighter;
+    margin-right: 0.1rem;
   }
 }
 
-// Guard against any horizontal overflow on small screens: charts stay within
-// their container and the page never scrolls sideways. The comparison table
-// scrolls inside its own .table-container instead.
-.analytics {
-  overflow-x: hidden;
+// Guard against horizontal overflow on small screens ONLY. On desktop this must
+// stay off, otherwise it clips the cards' soft shadows at the page edges.
+@media screen and (max-width: 768px) {
+  .analytics {
+    overflow-x: hidden;
+  }
 }
 
 // Cards clip any chart that momentarily renders wider than its container

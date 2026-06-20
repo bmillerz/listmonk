@@ -317,6 +317,11 @@ export const getCampaignBounceCounts = async (params) => http.get(
   { params, loading: models.campaigns },
 );
 
+export const getCampaignComplaintCounts = async (params) => http.get(
+  '/api/campaigns/analytics/complaints',
+  { params, loading: models.campaigns },
+);
+
 export const getCampaignUnsubscribeCounts = async (params) => http.get(
   '/api/campaigns/analytics/unsubscribes',
   { params, loading: models.campaigns },

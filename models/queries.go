@@ -75,6 +75,8 @@ type Queries struct {
 	GetCampaignClickCounts     *sqlx.Stmt `query:"get-campaign-click-counts"`
 	GetCampaignLinkCounts      *sqlx.Stmt `query:"get-campaign-link-counts"`
 	GetCampaignBounceCounts    *sqlx.Stmt `query:"get-campaign-bounce-counts"`
+	// BRAND: spam-complaint counts (bounces of type 'complaint') for deliverability.
+	GetCampaignComplaintCounts *sqlx.Stmt `query:"get-campaign-complaint-counts"`
 	// BRAND: per-campaign unsubscribe counts (prepared in init.go from the analytics
 	// count template against the campaign_unsubscribes table).
 	GetCampaignUnsubscribeCounts *sqlx.Stmt `query:"get-campaign-unsubscribe-counts"`
