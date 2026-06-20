@@ -115,7 +115,19 @@
             <div class="ca-card-head">
               <h3 class="title is-6">{{ $t('analytics.funnel') }}</h3>
             </div>
-            <apexchart v-if="!isLoading" type="bar" height="300" :options="funnelOptions" :series="funnelSeries" />
+            <div class="ca-ladder">
+              <div v-for="s in funnelStages" :key="s.key" class="ca-rung">
+                <div class="ca-rung-head">
+                  <span class="ca-rung-label">{{ s.label }}</span>
+                  <span class="ca-rung-val">
+                    {{ $utils.niceNumber(s.count) }}<span class="ca-rung-pct">{{ s.pct }}%</span>
+                  </span>
+                </div>
+                <div class="ca-rung-track">
+                  <div class="ca-rung-fill" :style="{ width: `${s.pct}%`, background: s.color }" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="column is-7">
@@ -135,6 +147,7 @@
         <div class="ca-card-head">
           <h3 class="title is-6">{{ $t('analytics.comparison') }}</h3>
         </div>
+        <div class="table-container">
         <table class="table is-fullwidth is-hoverable ca-table">
           <thead>
             <tr>
@@ -157,6 +170,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <!-- Deliverability: bounces + unsubscribes over time. -->
@@ -312,44 +326,25 @@ export default Vue.extend({
       return this.areaBase(this.isSingle ? [C.opens, C.clicks] : SERIES_PALETTE, 320);
     },
 
-    funnelSeries() {
-      const delivered = Math.max(this.totalSent - this.counts.bounces, 0);
-      return [{
-        name: this.$tc('globals.terms.campaign', 1),
-        data: [this.totalSent, delivered, this.counts.views, this.counts.clicks],
-      }];
-    },
-
-    funnelOptions() {
-      const cats = [
-        this.$t('analytics.sent'), this.$t('analytics.delivered'),
-        this.$t('analytics.opened'), this.$t('analytics.clicked'),
+    // Conversion ladder stages (relative to sent), rendered as CSS progress bars.
+    funnelStages() {
+      const sent = this.totalSent;
+      const delivered = Math.max(sent - this.counts.bounces, 0);
+      const pct = (n) => (sent ? Math.round((n / sent) * 1000) / 10 : 0);
+      return [
+        {
+          key: 'sent', label: this.$t('analytics.sent'), count: sent, pct: 100, color: C.neutral,
+        },
+        {
+          key: 'delivered', label: this.$t('analytics.delivered'), count: delivered, pct: pct(delivered), color: C.delivered,
+        },
+        {
+          key: 'opened', label: this.$t('analytics.opened'), count: this.counts.views, pct: pct(this.counts.views), color: C.opens,
+        },
+        {
+          key: 'clicked', label: this.$t('analytics.clicked'), count: this.counts.clicks, pct: pct(this.counts.clicks), color: C.clicks,
+        },
       ];
-      return {
-        chart: { type: 'bar', fontFamily: 'inherit', toolbar: { show: false } },
-        plotOptions: {
-          bar: {
-            horizontal: true, distributed: true, barHeight: '74%', isFunnel: true,
-          },
-        },
-        colors: [C.neutral, C.delivered, C.opens, C.clicks],
-        dataLabels: {
-          enabled: true,
-          formatter: (val, opt) => {
-            const pct = this.totalSent ? Math.round((val / this.totalSent) * 100) : 0;
-            return `${cats[opt.dataPointIndex]}  ·  ${this.$utils.niceNumber(val)} (${pct}%)`;
-          },
-          style: { colors: ['#fff'], fontSize: '12px', fontWeight: 500 },
-          dropShadow: {
-            enabled: true, top: 0, left: 0, blur: 2, opacity: 0.25,
-          },
-        },
-        xaxis: { categories: cats },
-        yaxis: { labels: { show: false } },
-        grid: { show: false },
-        legend: { show: false },
-        tooltip: { enabled: false },
-      };
     },
 
     linksSeries() {
@@ -708,7 +703,7 @@ $text-strong: #363636;
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
-    white-space: nowrap;
+    min-width: 0;
   }
 }
 
@@ -816,5 +811,72 @@ $text-strong: #363636;
   td, th {
     vertical-align: middle;
   }
+}
+
+// Conversion ladder (replaces the funnel chart): labelled CSS progress bars.
+.ca-ladder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.15rem;
+  height: 100%;
+  padding: 0.4rem 0;
+}
+
+.ca-rung {
+  .ca-rung-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .ca-rung-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $grey;
+  }
+
+  .ca-rung-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $text-strong;
+    white-space: nowrap;
+  }
+
+  .ca-rung-pct {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: $grey;
+    margin-left: 0.4rem;
+  }
+
+  .ca-rung-track {
+    height: 12px;
+    border-radius: 6px;
+    background: #f1f4f8;
+    overflow: hidden;
+  }
+
+  .ca-rung-fill {
+    height: 100%;
+    border-radius: 6px;
+    min-width: 2px;
+    transition: width 0.5s ease;
+  }
+}
+
+// Guard against any horizontal overflow on small screens: charts stay within
+// their container and the page never scrolls sideways. The comparison table
+// scrolls inside its own .table-container instead.
+.analytics {
+  overflow-x: hidden;
+}
+
+::v-deep .apexcharts-canvas {
+  max-width: 100%;
 }
 </style>
