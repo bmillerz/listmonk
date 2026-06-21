@@ -116,3 +116,32 @@ export const parseFacebookText = (text, now = new Date()) => {
     rows, total: headerIdx.length, skippedNoEmail, skippedDuplicate,
   };
 };
+
+const csvCell = (val) => {
+  const s = String(val === null || val === undefined ? '' : val);
+  if (/[",\n\r]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+};
+
+export const toImportCsv = (rows) => {
+  const out = ['email,name,attributes'];
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    const attribs = {
+      source: 'facebook_group',
+      signup_date: r.signupDate,
+      first_name: r.firstName,
+      last_name: r.lastName,
+    };
+    if (r.location) {
+      attribs.location = r.location;
+    }
+    if (r.visitedBefore) {
+      attribs.visited_before = r.visitedBefore;
+    }
+    out.push([csvCell(r.email), csvCell(r.name), csvCell(JSON.stringify(attribs))].join(','));
+  }
+  return `${out.join('\n')}\n`;
+};

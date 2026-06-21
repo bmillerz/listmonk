@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { parseRelativeTime, splitName, parseFacebookText } from './facebookParser';
+import {
+  describe, it, expect,
+} from 'vitest';
+import {
+  parseRelativeTime, splitName, parseFacebookText, toImportCsv,
+} from './facebookParser';
 import { SAMPLE } from './facebookParser.sample';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
@@ -120,5 +124,61 @@ describe('parseFacebookText', () => {
     const res = parseFacebookText(dup, NOW2);
     expect(res.rows).toHaveLength(1);
     expect(res.skippedDuplicate).toBe(1);
+  });
+});
+
+describe('toImportCsv', () => {
+  it('builds a header + row with escaped JSON attributes', () => {
+    const rows = [{
+      name: 'A B',
+      email: 'a@b.com',
+      firstName: 'A',
+      lastName: 'B',
+      signupDate: '2026-06-21T12:00:00.000Z',
+      location: 'Houston, Texas',
+      visitedBefore: 'Yes',
+    }];
+    const csv = toImportCsv(rows);
+    expect(csv).toBe(
+      'email,name,attributes\n'
+      + 'a@b.com,A B,'
+      + '"{""source"":""facebook_group"",""signup_date"":""2026-06-21T12:00:00.000Z"",'
+      + '""first_name"":""A"",""last_name"":""B"",""location"":""Houston, Texas"",'
+      + '""visited_before"":""Yes""}"\n',
+    );
+  });
+
+  it('omits empty location and visited_before', () => {
+    const rows = [{
+      name: 'C D',
+      email: 'c@d.com',
+      firstName: 'C',
+      lastName: 'D',
+      signupDate: '2026-06-21T12:00:00.000Z',
+      location: '',
+      visitedBefore: '',
+    }];
+    const csv = toImportCsv(rows);
+    const attribsCell = csv.trim().split('\n')[1].slice('c@d.com,C D,'.length);
+    const json = JSON.parse(attribsCell.slice(1, -1).replace(/""/g, '"'));
+    expect(json).toEqual({
+      source: 'facebook_group',
+      signup_date: '2026-06-21T12:00:00.000Z',
+      first_name: 'C',
+      last_name: 'D',
+    });
+  });
+
+  it('quotes a name containing a comma', () => {
+    const rows = [{
+      name: 'Boriskina, M',
+      email: 'm@x.com',
+      firstName: 'Boriskina,',
+      lastName: 'M',
+      signupDate: '2026-06-21T12:00:00.000Z',
+      location: '',
+      visitedBefore: '',
+    }];
+    expect(toImportCsv(rows)).toContain('m@x.com,"Boriskina, M",');
   });
 });
