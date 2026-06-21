@@ -22,7 +22,7 @@
         :active="activeItem.import" data-cy="import" icon="file-upload-outline" :label="$t('menu.import')" />
       <b-menu-item v-if="$can('subscribers:import')" :to="{ name: 'importFacebook' }" tag="router-link"
         :active="$route.name === 'importFacebook'" data-cy="import-facebook"
-        icon="account-multiple" :label="$t('menu.importFacebook')" />
+        icon="file-upload-outline" :label="$t('menu.importFacebook')" />
       <b-menu-item v-if="$can('bounces:get')" :to="{ name: 'bounces' }" tag="router-link" :active="activeItem.bounces"
         data-cy="bounces" icon="email-bounce" :label="$t('globals.terms.bounces')" />
     </b-menu-item><!-- subscribers -->
