@@ -56,3 +56,71 @@ describe('splitName', () => {
     expect(splitName('  Mai   Kamal ')).toEqual({ firstName: 'Mai', lastName: 'Kamal' });
   });
 });
+
+import { parseFacebookText } from './facebookParser';
+import { SAMPLE } from './facebookParser.sample';
+
+describe('parseFacebookText', () => {
+  const NOW2 = new Date('2026-06-21T12:00:00.000Z');
+  const out = parseFacebookText(SAMPLE, NOW2);
+
+  it('counts every person but not employer lines', () => {
+    // 18 people in the sample; "Worked at"/"Works at"/"Manager at" lines must not count.
+    expect(out.total).toBe(18);
+  });
+
+  it('keeps only the three rows with an email', () => {
+    expect(out.rows.map((r) => r.email)).toEqual([
+      'csauriol9@gmail.com',
+      'kelly.sadauckas@gmail.com',
+      'tricia_daigle13@yahoo.com',
+    ]);
+    expect(out.skippedNoEmail).toBe(15);
+    expect(out.skippedDuplicate).toBe(0);
+  });
+
+  it('extracts name parts, signup date and visited answer', () => {
+    const christina = out.rows[0];
+    expect(christina.name).toBe('Christina Sauriol');
+    expect(christina.firstName).toBe('Christina');
+    expect(christina.lastName).toBe('Sauriol');
+    expect(christina.signupDate).toBe('2026-06-21T06:00:00.000Z');
+    expect(christina.visitedBefore).toBe('Yes, I just checked it out.');
+    expect(christina.location).toBe('');
+  });
+
+  it('keeps multi-word surnames on emailed rows', () => {
+    const tricia = out.rows[2];
+    expect(tricia.firstName).toBe('Tricia');
+    expect(tricia.lastName).toBe('Russell Daigle');
+    expect(tricia.visitedBefore).toBe('No');
+  });
+
+  it('extracts location when the person both has an email and a "Lives in" line', () => {
+    const block = [
+      'Test Person (https://www.facebook.com/groups/1/user/2/)',
+      'Requested3 hours ago',
+      'Lives in Houston, Texas (https://www.facebook.com/Houston-Texas-1/)',
+      'Please enter your email here. mailto:Test.Person@Example.com',
+      'We run irelandtipsfortravellers.com. Have you visited it before? Maybe',
+    ].join('\n');
+    const r = parseFacebookText(block, NOW2).rows[0];
+    expect(r.email).toBe('test.person@example.com');
+    expect(r.location).toBe('Houston, Texas');
+    expect(r.visitedBefore).toBe('Maybe');
+  });
+
+  it('deduplicates by email within one paste', () => {
+    const dup = [
+      'A One (https://www.facebook.com/groups/1/user/2/)',
+      'Requested1 hour ago',
+      'mailto:dup@example.com',
+      'B Two (https://www.facebook.com/groups/1/user/3/)',
+      'Requested1 hour ago',
+      'mailto:DUP@example.com',
+    ].join('\n');
+    const res = parseFacebookText(dup, NOW2);
+    expect(res.rows).toHaveLength(1);
+    expect(res.skippedDuplicate).toBe(1);
+  });
+});
