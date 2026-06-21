@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseRelativeTime, splitName } from './facebookParser';
+import { parseRelativeTime, splitName, parseFacebookText } from './facebookParser';
+import { SAMPLE } from './facebookParser.sample';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 
@@ -56,9 +57,6 @@ describe('splitName', () => {
     expect(splitName('  Mai   Kamal ')).toEqual({ firstName: 'Mai', lastName: 'Kamal' });
   });
 });
-
-import { parseFacebookText } from './facebookParser';
-import { SAMPLE } from './facebookParser.sample';
 
 describe('parseFacebookText', () => {
   const NOW2 = new Date('2026-06-21T12:00:00.000Z');
