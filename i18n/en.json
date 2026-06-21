@@ -312,7 +312,7 @@
     "import.facebook.help": "Paste the member-request text copied from your Facebook group. People who supplied an email are imported as confirmed subscribers tagged with source “facebook_group”. Rows without an email are skipped.",
     "import.facebook.pasteLabel": "Facebook member-request text",
     "import.facebook.pastePlaceholder": "Paste the copied text here…",
-    "import.facebook.parse": "Parse",
+    "import.facebook.parse": "Find subscribers",
     "import.facebook.listHelp": "Imported subscribers are added to these lists as confirmed (no opt-in email is sent).",
     "import.facebook.summary": "{total} requests found · {withEmail} with email · {skipped} skipped (no email) · {dupes} duplicate",
     "import.facebook.firstName": "First name",
