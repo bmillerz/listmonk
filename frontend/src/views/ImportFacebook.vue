@@ -9,7 +9,7 @@
           :placeholder="$t('import.facebook.pastePlaceholder')" data-cy="fb-text" />
       </b-field>
       <b-button type="is-primary" :disabled="!rawText.trim()" @click="onParse"
-        icon-left="text-search" data-cy="fb-parse">
+        icon-left="magnify" data-cy="fb-parse">
         {{ $t('import.facebook.parse') }}
       </b-button>
     </template>
@@ -30,11 +30,11 @@
         data-cy="fb-lists" />
 
       <b-table :data="result.rows" checkable :checked-rows.sync="checkedRows"
-        narrowed paginated per-page="25" data-cy="fb-table" class="mt-4">
-        <b-table-column field="name" :label="$t('globals.terms.name')" v-slot="props">
+        narrowed paginated :per-page="25" data-cy="fb-table" class="mt-4">
+        <b-table-column field="name" :label="$t('globals.fields.name')" v-slot="props">
           {{ props.row.name }}
         </b-table-column>
-        <b-table-column field="email" :label="$t('globals.terms.email')" v-slot="props">
+        <b-table-column field="email" :label="$t('subscribers.email')" v-slot="props">
           {{ props.row.email }}
         </b-table-column>
         <b-table-column field="firstName" :label="$t('import.facebook.firstName')" v-slot="props">
@@ -59,12 +59,12 @@
       </p>
 
       <div class="buttons mt-4">
-        <b-button @click="onReset" icon-left="arrow-left" data-cy="fb-back">
+        <b-button @click="onReset" icon-left="chevron-left" data-cy="fb-back">
           {{ $t('globals.buttons.back') }}
         </b-button>
         <b-button type="is-primary"
           :disabled="checkedRows.length === 0 || selectedLists.length === 0 || isProcessing"
-          :loading="isProcessing" @click="onImport" icon-left="upload" data-cy="fb-import">
+          :loading="isProcessing" @click="onImport" icon-left="file-upload-outline" data-cy="fb-import">
           {{ $t('import.facebook.importN', { n: checkedRows.length }) }}
         </b-button>
       </div>
