@@ -1,4 +1,4 @@
-export const SAMPLE = `Patrick Frey (https://www.facebook.com/groups/158560111446142/user/1183125890/)
+export default `Patrick Frey (https://www.facebook.com/groups/158560111446142/user/1183125890/)
 Requested2 minutes ago
 4 groups
 Joined Facebook17 years ago

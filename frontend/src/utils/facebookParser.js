@@ -43,15 +43,14 @@ export const parseFacebookText = (text, now = new Date()) => {
   // pattern too, but are never followed by "Requested", so they are excluded.
   const headerIdx = [];
   for (let i = 0; i < lines.length; i += 1) {
-    if (!HEADER_RE.test(lines[i].trim())) {
-      continue;
-    }
-    let j = i + 1;
-    while (j < lines.length && lines[j].trim() === '') {
-      j += 1;
-    }
-    if (j < lines.length && REQUESTED_RE.test(lines[j].trim())) {
-      headerIdx.push(i);
+    if (HEADER_RE.test(lines[i].trim())) {
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() === '') {
+        j += 1;
+      }
+      if (j < lines.length && REQUESTED_RE.test(lines[j].trim())) {
+        headerIdx.push(i);
+      }
     }
   }
 
@@ -77,39 +76,37 @@ export const parseFacebookText = (text, now = new Date()) => {
     }
     if (!email) {
       skippedNoEmail += 1;
-      continue;
-    }
-    if (seen.has(email)) {
+    } else if (seen.has(email)) {
       skippedDuplicate += 1;
-      continue;
-    }
-    seen.add(email);
+    } else {
+      seen.add(email);
 
-    const reqLine = block.find((l) => REQUESTED_RE.test(l.trim())) || '';
-    const signupDate = parseRelativeTime(reqLine, now).toISOString();
+      const reqLine = block.find((l) => REQUESTED_RE.test(l.trim())) || '';
+      const signupDate = parseRelativeTime(reqLine, now).toISOString();
 
-    let location = '';
-    for (let k = 0; k < block.length; k += 1) {
-      const lm = block[k].trim().match(LIVES_RE);
-      if (lm) {
-        location = lm[1].trim();
-        break;
+      let location = '';
+      for (let k = 0; k < block.length; k += 1) {
+        const lm = block[k].trim().match(LIVES_RE);
+        if (lm) {
+          location = lm[1].trim();
+          break;
+        }
       }
-    }
 
-    let visitedBefore = '';
-    for (let k = 0; k < block.length; k += 1) {
-      const vm = block[k].match(VISITED_RE);
-      if (vm) {
-        visitedBefore = vm[1].trim();
-        break;
+      let visitedBefore = '';
+      for (let k = 0; k < block.length; k += 1) {
+        const vm = block[k].match(VISITED_RE);
+        if (vm) {
+          visitedBefore = vm[1].trim();
+          break;
+        }
       }
-    }
 
-    const { firstName, lastName } = splitName(name);
-    rows.push({
-      name, email, firstName, lastName, signupDate, location, visitedBefore,
-    });
+      const { firstName, lastName } = splitName(name);
+      rows.push({
+        name, email, firstName, lastName, signupDate, location, visitedBefore,
+      });
+    }
   }
 
   return {

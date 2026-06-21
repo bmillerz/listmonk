@@ -4,7 +4,7 @@ import {
 import {
   parseRelativeTime, splitName, parseFacebookText, toImportCsv,
 } from './facebookParser';
-import { SAMPLE } from './facebookParser.sample';
+import SAMPLE from './facebookParser.sample';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 
