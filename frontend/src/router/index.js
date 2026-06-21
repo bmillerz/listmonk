@@ -48,6 +48,12 @@ const routes = [
     component: () => import('../views/Import.vue'),
   },
   {
+    path: '/subscribers/import-facebook',
+    name: 'importFacebook',
+    meta: { title: 'import.facebook.title', group: 'subscribers' },
+    component: () => import('../views/ImportFacebook.vue'),
+  },
+  {
     path: '/subscribers/bounces',
     name: 'bounces',
     meta: { title: 'globals.terms.bounces', group: 'subscribers' },
