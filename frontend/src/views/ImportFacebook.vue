@@ -45,39 +45,57 @@
         </div>
       </div>
 
-      <list-selector :label="$t('globals.terms.lists')"
-        :placeholder="$t('globals.terms.lists')" :message="$t('import.facebook.listHelp')"
-        v-model="selectedLists" :selected="selectedLists" :all="lists.results"
-        data-cy="fb-lists" />
+      <!-- Step 1: choose the destination list(s). -->
+      <section class="fb-step" data-cy="fb-step-lists">
+        <header class="fb-step-head">
+          <span class="fb-step-num">1</span>
+          <div>
+            <h2 class="fb-step-title">{{ $t('import.facebook.step1Title') }}</h2>
+          </div>
+        </header>
+        <list-selector :label="$t('globals.terms.lists')"
+          :placeholder="$t('globals.terms.lists')" :message="$t('import.facebook.listHelp')"
+          v-model="selectedLists" :selected="selectedLists" :all="lists.results"
+          data-cy="fb-lists" />
+        <p v-if="selectedLists.length === 0" class="has-text-danger mt-2" data-cy="fb-nolist">
+          {{ $t('import.facebook.noList') }}
+        </p>
+      </section>
 
-      <b-table :data="result.rows" checkable :checked-rows.sync="checkedRows"
-        narrowed paginated :per-page="25" scrollable data-cy="fb-table" class="mt-4">
-        <b-table-column field="name" :label="$t('globals.fields.name')" v-slot="props">
-          {{ props.row.name }}
-        </b-table-column>
-        <b-table-column field="email" :label="$t('subscribers.email')" v-slot="props">
-          {{ props.row.email }}
-        </b-table-column>
-        <b-table-column field="firstName" :label="$t('import.facebook.firstName')" v-slot="props">
-          {{ props.row.firstName }}
-        </b-table-column>
-        <b-table-column field="lastName" :label="$t('import.facebook.lastName')" v-slot="props">
-          {{ props.row.lastName }}
-        </b-table-column>
-        <b-table-column field="signupDate" :label="$t('import.facebook.signupDate')" v-slot="props">
-          {{ props.row.signupDate }}
-        </b-table-column>
-        <b-table-column field="location" :label="$t('import.facebook.location')" v-slot="props">
-          {{ props.row.location }}
-        </b-table-column>
-        <b-table-column field="visitedBefore" :label="$t('import.facebook.visitedBefore')" v-slot="props">
-          {{ props.row.visitedBefore }}
-        </b-table-column>
-      </b-table>
-
-      <p v-if="selectedLists.length === 0" class="has-text-danger mt-2" data-cy="fb-nolist">
-        {{ $t('import.facebook.noList') }}
-      </p>
+      <!-- Step 2: review and pick who to import. -->
+      <section class="fb-step" data-cy="fb-step-review">
+        <header class="fb-step-head">
+          <span class="fb-step-num">2</span>
+          <div>
+            <h2 class="fb-step-title">{{ $t('import.facebook.step2Title') }}</h2>
+            <p class="fb-step-desc">{{ $t('import.facebook.step2Desc') }}</p>
+          </div>
+        </header>
+        <b-table :data="result.rows" checkable :checked-rows.sync="checkedRows"
+          narrowed paginated :per-page="25" scrollable data-cy="fb-table">
+          <b-table-column field="name" :label="$t('globals.fields.name')" v-slot="props">
+            {{ props.row.name }}
+          </b-table-column>
+          <b-table-column field="email" :label="$t('subscribers.email')" v-slot="props">
+            {{ props.row.email }}
+          </b-table-column>
+          <b-table-column field="firstName" :label="$t('import.facebook.firstName')" v-slot="props">
+            {{ props.row.firstName }}
+          </b-table-column>
+          <b-table-column field="lastName" :label="$t('import.facebook.lastName')" v-slot="props">
+            {{ props.row.lastName }}
+          </b-table-column>
+          <b-table-column field="signupDate" :label="$t('import.facebook.signupDate')" v-slot="props">
+            {{ props.row.signupDate }}
+          </b-table-column>
+          <b-table-column field="location" :label="$t('import.facebook.location')" v-slot="props">
+            {{ props.row.location }}
+          </b-table-column>
+          <b-table-column field="visitedBefore" :label="$t('import.facebook.visitedBefore')" v-slot="props">
+            {{ props.row.visitedBefore }}
+          </b-table-column>
+        </b-table>
+      </section>
 
       <div class="buttons mt-4">
         <b-button @click="onReset" icon-left="chevron-left" data-cy="fb-back">
@@ -229,5 +247,52 @@ export default {
       background: #e0524d;
     }
   }
+}
+
+// Stepped cards make the two actions — pick the list(s), then review & import —
+// visually distinct so the list selector can't be missed.
+.fb-step {
+  background: #fff;
+  border: 1px solid #e7e9ee;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20, 30, 50, 0.05);
+  padding: 1.25rem 1.4rem 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.fb-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.fb-step-num {
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: #0055d4;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fb-step-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1f2733;
+}
+
+.fb-step-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #7a828e;
 }
 </style>
