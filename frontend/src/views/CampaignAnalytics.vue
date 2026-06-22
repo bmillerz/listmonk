@@ -867,6 +867,26 @@ $muted: #6b7686;
   }
 }
 
+// Below desktop, stack the two-column rows full-width so neither card is
+// squeezed at tablet / narrow-desktop widths (matches the Dashboard).
+@media screen and (max-width: 1023px) {
+  .ca-body .columns {
+    display: block;
+    margin-left: 0;
+    margin-right: 0;
+
+    .column {
+      width: 100%;
+      padding-left: 0;
+      padding-right: 0;
+
+      &:not(:last-child) {
+        margin-bottom: 1.75rem;
+      }
+    }
+  }
+}
+
 .ca-note {
   margin-top: 0.5rem;
   font-size: 0.8rem;
