@@ -322,4 +322,10 @@ export default {
     height: 0.95rem;
   }
 }
+
+// Slightly tighten the list-selector field's bottom margin (Buefy default is
+// 1.5rem) without adding margin when it's the last element.
+.fb-step ::v-deep .field.list-selector:not(:last-child) {
+  margin-bottom: 1rem;
+}
 </style>
