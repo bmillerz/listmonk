@@ -100,7 +100,8 @@
             <h3 class="title is-6">Audience Health by Source</h3>
           </div>
           <p class="db-card-desc">New subscribers and churn (unsubscribed) by acquisition source.</p>
-          <table v-if="audienceSources.length" class="table is-fullwidth db-table">
+          <div v-if="audienceSources.length" class="db-table-wrap">
+            <table class="table is-fullwidth db-table">
             <thead>
               <tr>
                 <th>Source</th>
@@ -121,7 +122,8 @@
                 </td>
               </tr>
             </tbody>
-          </table>
+            </table>
+          </div>
           <p v-else-if="!isCountsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
         </div>
       </div>
@@ -138,7 +140,8 @@
         </div>
       </div>
       <p class="db-card-desc">Your latest campaigns and their current status.</p>
-      <table v-if="visibleCampaigns.length" class="table is-fullwidth db-table">
+      <div v-if="visibleCampaigns.length" class="db-table-wrap">
+        <table class="table is-fullwidth db-table">
         <thead>
           <tr>
             <th>Campaign</th>
@@ -186,7 +189,8 @@
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
       <p v-else-if="!isCampaignsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
     </div>
 
@@ -885,6 +889,12 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   }
 }
 
+// Dense tables scroll within their card instead of widening the whole page.
+.db-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .db-table {
   margin-top: 0.25rem;
 
@@ -1005,6 +1015,35 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   a {
     color: $muted;
     text-decoration: underline;
+  }
+}
+
+// Mobile: keep the dense tables and cards within the viewport. The two-column
+// rows already stack on mobile (Bulma's is-* widths are tablet-gated), so the
+// remaining overflow source is the wide tables, now scroll-contained above.
+@media screen and (max-width: 768px) {
+  .db-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.85rem;
+  }
+
+  .db-card {
+    padding: 1.1rem 1.15rem;
+  }
+
+  .db-table {
+    .db-camp-name,
+    .db-camp-lists {
+      max-width: 14rem;
+    }
+  }
+
+  // Drop the metric toggle out of the absolute corner so it can't overlap the
+  // card title on a narrow screen.
+  .db-toggle-select {
+    position: static;
+    float: right;
+    margin: 0 0 0.5rem 0.6rem;
   }
 }
 </style>
