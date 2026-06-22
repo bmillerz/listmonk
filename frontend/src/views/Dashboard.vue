@@ -29,12 +29,12 @@
       <div class="column is-8">
         <div class="db-card db-card-full relative">
           <b-loading v-if="isChartsLoading" active :is-full-page="false" />
-          <b-select v-model="chartMetric" size="is-small" class="db-toggle-select">
-            <option value="views">{{ $t('dashboard.campaignViews') }}</option>
-            <option value="clicks">{{ $t('dashboard.linkClicks') }}</option>
-          </b-select>
-          <div class="db-card-head">
+          <div class="db-card-head db-card-head--toggle">
             <h3 class="title is-6">Monthly Performance Snapshot</h3>
+            <b-select v-model="chartMetric" size="is-small" class="db-toggle-select">
+              <option value="views">{{ $t('dashboard.campaignViews') }}</option>
+              <option value="clicks">{{ $t('dashboard.linkClicks') }}</option>
+            </b-select>
           </div>
           <p class="db-card-desc">
             {{ chartMetric === 'views' ? 'Daily campaign opens across your account, over the past month.'
@@ -775,13 +775,10 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
     }
   }
 
-  // Metric toggle pulled out of the header flow (top-right) so the title and
-  // explainer keep the exact same spacing as every other card.
+  // Metric toggle sits inline in the (flex) card header so it can never overlap
+  // the title or the explainer text below it.
   .db-toggle-select {
-    position: absolute;
-    top: 1.2rem;
-    right: 1.5rem;
-    z-index: 2;
+    flex: none;
   }
 
   .db-card-desc {
@@ -938,9 +935,10 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
 
 .db-card-head--toggle {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
 }
 
 .db-action {
@@ -1018,9 +1016,30 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
   }
 }
 
-// Mobile: keep the dense tables and cards within the viewport. The two-column
-// rows already stack on mobile (Bulma's is-* widths are tablet-gated), so the
-// remaining overflow source is the wide tables, now scroll-contained above.
+// Below desktop, stack the two-column rows (Performance/Audience and
+// Bounce/Audience-Health) full-width so neither card is squeezed at tablet /
+// narrow-desktop widths. Bulma normally goes side-by-side from 769px; this
+// holds the stack until 1024px and gives the stacked cards a vertical gap.
+@media screen and (max-width: 1023px) {
+  .dashboard .columns {
+    display: block;
+    margin-left: 0;
+    margin-right: 0;
+
+    .column {
+      width: 100%;
+      padding-left: 0;
+      padding-right: 0;
+
+      &:not(:last-child) {
+        margin-bottom: 1.75rem;
+      }
+    }
+  }
+}
+
+// Phone: keep the dense tables and cards within the viewport (wide tables are
+// scroll-contained above) and tighten spacing.
 @media screen and (max-width: 768px) {
   .db-kpis {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1036,14 +1055,6 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
     .db-camp-lists {
       max-width: 14rem;
     }
-  }
-
-  // Drop the metric toggle out of the absolute corner so it can't overlap the
-  // card title on a narrow screen.
-  .db-toggle-select {
-    position: static;
-    float: right;
-    margin: 0 0 0.5rem 0.6rem;
   }
 }
 </style>

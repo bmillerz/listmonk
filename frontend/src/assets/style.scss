@@ -218,6 +218,11 @@ section {
     margin-left: 15px;
     padding: 30px;
     flex-grow: 1;
+    // Flex items default to min-width:auto, which refuses to shrink below the
+    // content's intrinsic width — a wide child (e.g. a dense table) then forces
+    // .main past the viewport and the whole page scrolls horizontally. Allowing
+    // it to shrink lets inner overflow:auto wrappers scroll instead.
+    min-width: 0;
     position: relative;
   }
 }
