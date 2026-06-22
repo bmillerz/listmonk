@@ -315,6 +315,8 @@
     "import.facebook.parse": "Find subscribers",
     "import.facebook.listHelp": "Imported subscribers are added to these lists as confirmed (no opt-in email is sent).",
     "import.facebook.summary": "{total} requests found · {withEmail} with email · {skipped} skipped (no email) · {dupes} duplicate",
+    "import.facebook.summaryReady": "{n} subscribers ready to import",
+    "import.facebook.summaryNone": "No subscribers with an email to import",
     "import.facebook.firstName": "First name",
     "import.facebook.lastName": "Last name",
     "import.facebook.signupDate": "Signup date",

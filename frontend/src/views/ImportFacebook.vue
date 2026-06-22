@@ -15,14 +15,35 @@
     </template>
 
     <template v-else>
-      <b-notification :closable="false" type="is-info" role="status" data-cy="fb-summary">
-        {{ $t('import.facebook.summary', {
-          total: result.total,
-          withEmail: result.rows.length,
-          skipped: result.skippedNoEmail,
-          dupes: result.skippedDuplicate,
-        }) }}
-      </b-notification>
+      <div class="fb-summary" :class="hasImportable ? 'is-success' : 'is-error'"
+        role="status" data-cy="fb-summary">
+        <span class="fb-summary-icon" aria-hidden="true">
+          <svg v-if="hasImportable" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <line x1="12" y1="7.5" x2="12" y2="13" />
+            <line x1="12" y1="16.5" x2="12" y2="16.5" />
+          </svg>
+        </span>
+        <div class="fb-summary-text">
+          <p class="fb-summary-title">
+            {{ hasImportable ? $t('import.facebook.summaryReady', { n: result.rows.length })
+              : $t('import.facebook.summaryNone') }}
+          </p>
+          <p class="fb-summary-counts">
+            {{ $t('import.facebook.summary', {
+              total: result.total,
+              withEmail: result.rows.length,
+              skipped: result.skippedNoEmail,
+              dupes: result.skippedDuplicate,
+            }) }}
+          </p>
+        </div>
+      </div>
 
       <list-selector :label="$t('globals.terms.lists')"
         :placeholder="$t('globals.terms.lists')" :message="$t('import.facebook.listHelp')"
@@ -97,6 +118,12 @@ export default {
 
   computed: {
     ...mapState(['lists']),
+
+    // Success when the parse yielded at least one importable (emailed) row;
+    // otherwise the summary shows its red error variant.
+    hasImportable() {
+      return this.result.rows.length > 0;
+    },
   },
 
   methods: {
@@ -141,3 +168,66 @@ export default {
   },
 };
 </script>
+
+<style lang="scss" scoped>
+// Parse-result banner: an obvious green success state (rows ready to import)
+// and a red error state (nothing with an email was found).
+.fb-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  margin-bottom: 1.25rem;
+
+  .fb-summary-icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    color: #fff;
+
+    svg {
+      width: 1.3rem;
+      height: 1.3rem;
+    }
+  }
+
+  .fb-summary-title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  .fb-summary-counts {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+
+  &.is-success {
+    background: #ecfaf1;
+    border-color: #c6efd6;
+    color: #1f7a47;
+
+    .fb-summary-icon {
+      background: #2bb673;
+    }
+  }
+
+  &.is-error {
+    background: #fdecea;
+    border-color: #f7c4bf;
+    color: #c0392b;
+
+    .fb-summary-icon {
+      background: #e0524d;
+    }
+  }
+}
+</style>
