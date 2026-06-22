@@ -57,7 +57,11 @@
           :placeholder="$t('globals.terms.lists')" :message="$t('import.facebook.listHelp')"
           v-model="selectedLists" :selected="selectedLists" :all="lists.results"
           data-cy="fb-lists" />
-        <p v-if="selectedLists.length === 0" class="has-text-danger mt-2" data-cy="fb-nolist">
+        <p v-if="selectedLists.length === 0" class="fb-nolist" data-cy="fb-nolist">
+          <svg class="fb-nolist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" />
+          </svg>
           {{ $t('import.facebook.noList') }}
         </p>
       </section>
@@ -294,5 +298,28 @@ export default {
   font-size: 0.82rem;
   line-height: 1.4;
   color: #7a828e;
+}
+
+// Small amber hint shown until a list is picked — a gentle nudge, not a heavy
+// error block.
+.fb-nolist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #fff5e0;
+  border: 1px solid #fbe3b0;
+  color: #9a6a12;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+
+  .fb-nolist-icon {
+    flex: none;
+    width: 0.95rem;
+    height: 0.95rem;
+  }
 }
 </style>
