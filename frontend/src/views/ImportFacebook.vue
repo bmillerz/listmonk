@@ -30,7 +30,7 @@
         data-cy="fb-lists" />
 
       <b-table :data="result.rows" checkable :checked-rows.sync="checkedRows"
-        narrowed paginated :per-page="25" data-cy="fb-table" class="mt-4">
+        narrowed paginated :per-page="25" scrollable data-cy="fb-table" class="mt-4">
         <b-table-column field="name" :label="$t('globals.fields.name')" v-slot="props">
           {{ props.row.name }}
         </b-table-column>
