@@ -88,7 +88,7 @@
           <div class="db-card-head">
             <h3 class="title is-6">Historical Bounce Rate</h3>
           </div>
-          <p class="db-card-desc">Monthly bounce rate — bounces as a share of messages sent.</p>
+          <p class="db-card-desc">Rolling 90-day bounce rate. Periods under 500 sends are greyed — too little volume to read.</p>
           <apexchart v-if="bounceSeries" type="bar" height="240" :options="bounceOptions" :series="bounceSeries" />
           <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
         </div>
@@ -99,7 +99,7 @@
           <div class="db-card-head">
             <h3 class="title is-6">Historical Complaint Rate</h3>
           </div>
-          <p class="db-card-desc">Monthly spam-complaint rate — complaints as a share of messages sent.</p>
+          <p class="db-card-desc">Rolling 90-day spam-complaint rate. Periods under 500 sends are greyed — too little volume to read.</p>
           <apexchart v-if="complaintSeries" type="bar" height="240" :options="complaintOptions"
             :series="complaintSeries" />
           <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
@@ -235,6 +235,12 @@ const C = {
 };
 const AXIS = '#8a97a8';
 const GRID = '#eef1f5';
+// Deliverability charts use a rolling 90-day window. Below this many sends in the
+// window the rate is too thin to trust, so the bar is greyed rather than coloured
+// against the SES threshold bands — a low-volume safety valve against false alarms.
+const VOLUME_FLOOR = 500;
+const BAR_RED = '#e0524d';
+const BAR_GREY = '#cbd5e1';
 
 export default Vue.extend({
   components: {
@@ -472,7 +478,11 @@ export default Vue.extend({
       }
       return [{
         name: 'Bounce rate',
-        data: br.map((m) => [dayjs(m.month).valueOf(), m.sent ? Math.round((m.bounces / m.sent) * 1000) / 10 : 0]),
+        data: br.map((m) => ({
+          x: dayjs(m.month).valueOf(),
+          y: m.sent ? Math.round((m.bounces / m.sent) * 1000) / 10 : 0,
+          fillColor: m.sent < VOLUME_FLOOR ? BAR_GREY : BAR_RED,
+        })),
       }];
     },
 
@@ -560,8 +570,11 @@ export default Vue.extend({
       }
       return [{
         name: 'Complaint rate',
-        data: cr.map((m) => [dayjs(m.month).valueOf(),
-          m.sent ? Math.round((m.complaints / m.sent) * 10000) / 100 : 0]),
+        data: cr.map((m) => ({
+          x: dayjs(m.month).valueOf(),
+          y: m.sent ? Math.round((m.complaints / m.sent) * 10000) / 100 : 0,
+          fillColor: m.sent < VOLUME_FLOOR ? BAR_GREY : BAR_RED,
+        })),
       }];
     },
 

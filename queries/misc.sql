@@ -29,17 +29,34 @@ camp_bounces AS (
         COUNT(*) FILTER (WHERE type =  'complaint') AS complaints
     FROM bounces GROUP BY campaign_id
 ),
+-- Rolling 90-day deliverability rate, sampled at each of the last 12 months.
+-- Each point = events RECEIVED (bounces.created_at) over the trailing 90 days
+-- divided by emails SENT in the same window — mirroring how SES computes its
+-- reputation over a rolling representative volume rather than discrete calendar
+-- months, so a single complaint is smoothed instead of spiking one bucket.
+hist_months AS (
+    SELECT gs AS month,
+        LEAST(gs + INTERVAL '1 month' - INTERVAL '1 microsecond', NOW()) AS w_end
+    FROM generate_series(DATE_TRUNC('month', NOW()) - INTERVAL '11 months',
+                         DATE_TRUNC('month', NOW()), INTERVAL '1 month') gs
+),
 bounce_monthly AS (
     SELECT
-        DATE_TRUNC('month', c.started_at) AS month,
-        SUM(c.sent)                       AS sent,
-        COALESCE(SUM(cb.bounces), 0)      AS bounces,
-        COALESCE(SUM(cb.complaints), 0)   AS complaints
-    FROM campaigns c
-        LEFT JOIN camp_bounces cb ON cb.campaign_id = c.id
-    WHERE c.status = 'finished' AND c.started_at >= NOW() - INTERVAL '12 months'
-    GROUP BY 1
-    ORDER BY 1
+        hm.month,
+        (SELECT COALESCE(SUM(c.sent), 0) FROM campaigns c
+            WHERE c.status = 'finished'
+              AND c.started_at >  hm.w_end - INTERVAL '90 days'
+              AND c.started_at <= hm.w_end)                  AS sent,
+        (SELECT COUNT(*) FROM bounces b
+            WHERE b.type != 'complaint'
+              AND b.created_at > hm.w_end - INTERVAL '90 days'
+              AND b.created_at <= hm.w_end)                  AS bounces,
+        (SELECT COUNT(*) FROM bounces b
+            WHERE b.type = 'complaint'
+              AND b.created_at > hm.w_end - INTERVAL '90 days'
+              AND b.created_at <= hm.w_end)                  AS complaints
+    FROM hist_months hm
+    ORDER BY hm.month
 ),
 -- Account-level email performance for the current vs. prior 30-day window
 -- (campaigns finished in each window), so the dashboard KPI cards can show rates
