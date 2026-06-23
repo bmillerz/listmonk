@@ -24,13 +24,17 @@ msg_growth AS (
     WHERE status = 'finished'
 ),
 camp_bounces AS (
-    SELECT campaign_id, COUNT(*) AS bounces FROM bounces WHERE type != 'complaint' GROUP BY campaign_id
+    SELECT campaign_id,
+        COUNT(*) FILTER (WHERE type != 'complaint') AS bounces,
+        COUNT(*) FILTER (WHERE type =  'complaint') AS complaints
+    FROM bounces GROUP BY campaign_id
 ),
 bounce_monthly AS (
     SELECT
         DATE_TRUNC('month', c.started_at) AS month,
         SUM(c.sent)                       AS sent,
-        COALESCE(SUM(cb.bounces), 0)      AS bounces
+        COALESCE(SUM(cb.bounces), 0)      AS bounces,
+        COALESCE(SUM(cb.complaints), 0)   AS complaints
     FROM campaigns c
         LEFT JOIN camp_bounces cb ON cb.campaign_id = c.id
     WHERE c.status = 'finished' AND c.started_at >= NOW() - INTERVAL '12 months'
@@ -85,6 +89,9 @@ SELECT JSON_BUILD_OBJECT(
     'messageGrowth',    (SELECT ROW_TO_JSON(msg_growth) FROM msg_growth),
     'bounceRates',      (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
                                 'month', month, 'sent', sent, 'bounces', bounces)), '[]'::json)
+                         FROM bounce_monthly),
+    'complaintRates',   (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
+                                'month', month, 'sent', sent, 'complaints', complaints)), '[]'::json)
                          FROM bounce_monthly),
     'emailMetrics',     JSON_BUILD_OBJECT(
         'current', (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'current') t),

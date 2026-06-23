@@ -80,7 +80,7 @@
       </div>
     </div>
 
-    <!-- Historical bounce rate + audience health by source. -->
+    <!-- Historical bounce + complaint rate. -->
     <div class="columns">
       <div class="column is-6">
         <div class="db-card db-card-full relative">
@@ -94,6 +94,22 @@
         </div>
       </div>
       <div class="column is-6">
+        <div class="db-card db-card-full relative">
+          <b-loading v-if="isChartsLoading" active :is-full-page="false" />
+          <div class="db-card-head">
+            <h3 class="title is-6">Historical Complaint Rate</h3>
+          </div>
+          <p class="db-card-desc">Monthly spam-complaint rate — complaints as a share of messages sent.</p>
+          <apexchart v-if="complaintSeries" type="bar" height="240" :options="complaintOptions"
+            :series="complaintSeries" />
+          <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audience health by source. -->
+    <div class="columns">
+      <div class="column is-12">
         <div class="db-card db-card-full relative">
           <b-loading v-if="isCountsLoading" active :is-full-page="false" />
           <div class="db-card-head">
@@ -455,8 +471,8 @@ export default Vue.extend({
       const rates = ((this.insights && this.insights.bounceRates) || [])
         .map((m) => (m.sent ? (m.bounces / m.sent) * 100 : 0));
       const dataMax = rates.length ? Math.max(...rates) : 0;
-      // Keep both threshold lines (2% caution, 5% risk) in view; grow if a month spikes past them.
-      const yMax = Math.max(6, Math.ceil(dataMax * 1.2));
+      // Keep both threshold lines (5% caution, 10% risk) in view; grow if a month spikes past them.
+      const yMax = Math.max(12, Math.ceil(dataMax * 1.2));
       // Always show a full trailing 12-month window, even when only a few months have data.
       const xMin = dayjs().subtract(5, 'month').startOf('month').valueOf();
       const xMax = dayjs().endOf('month').valueOf();
@@ -477,11 +493,11 @@ export default Vue.extend({
         annotations: {
           yaxis: [
             {
-              y: 2,
+              y: 5,
               borderColor: '#e8a13c',
               strokeDashArray: 5,
               label: {
-                text: 'Caution 2%',
+                text: 'Caution 5%',
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,
@@ -492,11 +508,11 @@ export default Vue.extend({
               },
             },
             {
-              y: 5,
+              y: 10,
               borderColor: '#e0524d',
               strokeDashArray: 5,
               label: {
-                text: 'At risk 5%',
+                text: 'At risk 10%',
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,
@@ -521,6 +537,93 @@ export default Vue.extend({
           min: 0,
           max: yMax,
           labels: { formatter: (v) => `${Math.round(v * 10) / 10}%`, style: { colors: AXIS } },
+        },
+        legend: { show: false },
+        tooltip: { x: { format: 'MMM yyyy' }, y: { formatter: (v) => `${v}%` }, theme: 'light' },
+      };
+    },
+
+    // Monthly complaint rate: complaints / sent per send-month, as a percentage (2 decimals).
+    complaintSeries() {
+      const cr = (this.insights && this.insights.complaintRates) || [];
+      if (!cr.length) {
+        return null;
+      }
+      return [{
+        name: 'Complaint rate',
+        data: cr.map((m) => [dayjs(m.month).valueOf(),
+          m.sent ? Math.round((m.complaints / m.sent) * 10000) / 100 : 0]),
+      }];
+    },
+
+    complaintOptions() {
+      const rates = ((this.insights && this.insights.complaintRates) || [])
+        .map((m) => (m.sent ? (m.complaints / m.sent) * 100 : 0));
+      const dataMax = rates.length ? Math.max(...rates) : 0;
+      // Keep both threshold lines (0.1% caution, 0.5% risk) in view; grow if a month spikes past them.
+      const yMax = Math.max(0.6, Math.ceil(dataMax * 1.2 * 100) / 100);
+      const xMin = dayjs().subtract(5, 'month').startOf('month').valueOf();
+      const xMax = dayjs().endOf('month').valueOf();
+      return {
+        chart: {
+          type: 'bar',
+          fontFamily: 'inherit',
+          toolbar: { show: false },
+          zoom: { enabled: false },
+          animations: { easing: 'easeinout', speed: 400 },
+        },
+        colors: ['#e0524d'],
+        plotOptions: { bar: { columnWidth: '10%', borderRadius: 2 } },
+        stroke: { width: 0 },
+        dataLabels: { enabled: false },
+        grid: { borderColor: GRID, strokeDashArray: 4, padding: { left: 12, right: 12 } },
+        annotations: {
+          yaxis: [
+            {
+              y: 0.1,
+              borderColor: '#e8a13c',
+              strokeDashArray: 5,
+              label: {
+                text: 'Caution 0.1%',
+                position: 'left',
+                textAnchor: 'start',
+                offsetY: 8,
+                borderColor: 'transparent',
+                style: {
+                  color: '#fff', background: '#e8a13c', fontSize: '10px', fontWeight: 600,
+                },
+              },
+            },
+            {
+              y: 0.5,
+              borderColor: '#e0524d',
+              strokeDashArray: 5,
+              label: {
+                text: 'At risk 0.5%',
+                position: 'left',
+                textAnchor: 'start',
+                offsetY: 8,
+                borderColor: 'transparent',
+                style: {
+                  color: '#fff', background: '#e0524d', fontSize: '10px', fontWeight: 600,
+                },
+              },
+            },
+          ],
+        },
+        xaxis: {
+          type: 'datetime',
+          min: xMin,
+          max: xMax,
+          tickAmount: 5,
+          labels: { datetimeUTC: false, format: 'MMM yyyy', style: { colors: AXIS } },
+          axisBorder: { show: false },
+          axisTicks: { show: false },
+        },
+        yaxis: {
+          min: 0,
+          max: yMax,
+          labels: { formatter: (v) => `${Math.round(v * 100) / 100}%`, style: { colors: AXIS } },
         },
         legend: { show: false },
         tooltip: { x: { format: 'MMM yyyy' }, y: { formatter: (v) => `${v}%` }, theme: 'light' },
