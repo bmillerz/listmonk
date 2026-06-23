@@ -270,7 +270,7 @@ export default Vue.extend({
       const rows = this.hideDrafts
         ? this.recentCampaigns.filter((c) => c.status !== 'draft')
         : this.recentCampaigns;
-      return rows.slice(0, 3);
+      return rows.slice(0, 5);
     },
 
     // Email performance over the last 30 days — rates and their 30-day change.
