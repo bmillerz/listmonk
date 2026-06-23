@@ -196,7 +196,7 @@
             <td class="has-text-right">{{ $utils.niceNumber(s.subscribers) }}</td>
             <td class="has-text-right">
               <span class="db-trend" :class="`is-${s.trend}`">
-                {{ s.trend === 'up' ? '↑' : (s.trend === 'down' ? '↓' : '–') }} {{ $utils.niceNumber(s.new30) }}
+                {{ s.trendArrow }} {{ $utils.niceNumber(s.new30) }}
               </span>
             </td>
             <td class="has-text-right">{{ $utils.niceNumber(s.unsubscribed) }}</td>
@@ -408,12 +408,18 @@ export default Vue.extend({
       return rows.map((r) => {
         const ever = r.subscribers + r.unsubscribed;
         // 30d-vs-prior-30d acquisition direction for the New (30d) trend arrow.
-        const dir = r.new30 > r.prev30 ? 'up' : (r.new30 < r.prev30 ? 'down' : 'flat');
+        let trend = 'flat';
+        if (r.new30 > r.prev30) {
+          trend = 'up';
+        } else if (r.new30 < r.prev30) {
+          trend = 'down';
+        }
         return {
           ...r,
           label: r.source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
           churn: ever ? Math.round((r.unsubscribed / ever) * 1000) / 10 : 0,
-          trend: dir,
+          trend,
+          trendArrow: { up: '↑', down: '↓', flat: '–' }[trend],
         };
       });
     },
