@@ -34,12 +34,12 @@
             <b-select v-model="chartMetric" size="is-small" class="db-toggle-select">
               <option value="views">{{ $t('dashboard.campaignViews') }}</option>
               <option value="clicks">{{ $t('dashboard.linkClicks') }}</option>
+              <option value="ctor">Click-to-open rate</option>
+              <option value="unsub">Unsubscribes</option>
+              <option value="bounce">Bounces</option>
             </b-select>
           </div>
-          <p class="db-card-desc">
-            {{ chartMetric === 'views' ? 'Daily campaign opens across your account, over the past month.'
-              : 'Daily link clicks across your account, over the past month.' }}
-          </p>
+          <p class="db-card-desc">{{ snapshotMeta.desc }}</p>
           <apexchart v-if="chartSeries" type="line" height="260" :options="chartOptions" :series="chartSeries" />
           <p v-else-if="!isChartsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
         </div>
@@ -432,16 +432,68 @@ export default Vue.extend({
     },
 
     // Single series for the selected metric (views/clicks), daily over the past month.
+    // Metadata for the selected Monthly Performance Snapshot metric: dropdown
+    // label, line colour, axis unit (count vs. %) and the descriptive subtitle.
+    snapshotMeta() {
+      const M = {
+        views: {
+          label: this.$t('dashboard.campaignViews'),
+          color: C.subscribers,
+          unit: 'count',
+          desc: 'Daily campaign opens across your account, over the past month.',
+        },
+        clicks: {
+          label: this.$t('dashboard.linkClicks'),
+          color: C.lists,
+          unit: 'count',
+          desc: 'Daily link clicks across your account, over the past month.',
+        },
+        ctor: {
+          label: 'Click-to-open rate',
+          color: C.campaigns,
+          unit: 'pct',
+          desc: 'Daily click-to-open rate (clicks ÷ opens) across your account. Shown only for days with opens.',
+        },
+        unsub: {
+          label: 'Unsubscribes',
+          color: '#e8a13c',
+          unit: 'count',
+          desc: 'Daily unsubscribes across your account, over the past month.',
+        },
+        bounce: {
+          label: 'Bounces',
+          color: BAR_RED,
+          unit: 'count',
+          desc: 'Daily bounces across your account, over the past month.',
+        },
+      };
+      return M[this.chartMetric] || M.views;
+    },
+
+    // Daily click-to-open rate (%): clicks ÷ opens, per day, only where opens > 0
+    // (so a no-send day is a gap, not a misleading 0%).
+    ctorSeries() {
+      const opens = this.campaignViews;
+      if (!opens || !opens.length) {
+        return null;
+      }
+      const clickMap = new Map((this.campaignClicks || []).map(([ms, n]) => [ms, n]));
+      const pts = opens
+        .filter(([, o]) => o > 0)
+        .map(([ms, o]) => [ms, Math.round(((clickMap.get(ms) || 0) / o) * 1000) / 10]);
+      return pts.length ? pts : null;
+    },
+
     chartSeries() {
-      const isViews = this.chartMetric === 'views';
-      const data = isViews ? this.campaignViews : this.campaignClicks;
+      const data = this.metricData(this.chartMetric);
       if (!data) {
         return null;
       }
-      return [{ name: isViews ? this.$t('dashboard.campaignViews') : this.$t('dashboard.linkClicks'), data }];
+      return [{ name: this.snapshotMeta.label, data }];
     },
 
     chartOptions() {
+      const isPct = this.snapshotMeta.unit === 'pct';
       return {
         chart: {
           type: 'line',
@@ -450,7 +502,7 @@ export default Vue.extend({
           zoom: { enabled: false },
           animations: { easing: 'easeinout', speed: 400 },
         },
-        colors: [this.chartMetric === 'views' ? C.subscribers : C.lists],
+        colors: [this.snapshotMeta.color],
         stroke: { curve: 'straight', width: 2 },
         markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
         dataLabels: { enabled: false },
@@ -464,10 +516,17 @@ export default Vue.extend({
         yaxis: {
           min: 0,
           forceNiceScale: true,
-          labels: { formatter: (v) => this.$utils.niceNumber(Math.round(v)), style: { colors: AXIS } },
+          labels: {
+            formatter: (v) => (isPct ? `${Math.round(v * 10) / 10}%` : this.$utils.niceNumber(Math.round(v))),
+            style: { colors: AXIS },
+          },
         },
         legend: { show: false },
-        tooltip: { x: { format: 'dd MMM' }, theme: 'light' },
+        tooltip: {
+          x: { format: 'dd MMM' },
+          y: isPct ? { formatter: (v) => `${v}%` } : undefined,
+          theme: 'light',
+        },
       };
     },
 
@@ -700,6 +759,19 @@ export default Vue.extend({
         .filter(([ms]) => ms >= cutoff)
         .sort((a, b) => a[0] - b[0]);
       return pts.length ? pts : null;
+    },
+
+    // Resolve the daily series for a Monthly Performance Snapshot metric. Views and
+    // clicks come pre-built from the charts endpoint; unsub/bounce are daily series
+    // on the live insights payload; CTOR is derived from views + clicks.
+    metricData(key) {
+      switch (key) {
+        case 'clicks': return this.campaignClicks;
+        case 'ctor': return this.ctorSeries;
+        case 'unsub': return this.makeSeries((this.insights || {}).dailyUnsubs);
+        case 'bounce': return this.makeSeries((this.insights || {}).dailyBounces);
+        default: return this.campaignViews;
+      }
     },
 
     statusClass(status) {

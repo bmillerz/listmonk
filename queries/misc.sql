@@ -118,7 +118,16 @@ SELECT JSON_BUILD_OBJECT(
     ),
     'audienceSources', (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
                             'source', source, 'subscribers', subscribers, 'new30', new30, 'prev30', prev30, 'unsubscribed', unsubscribed)
-                            ORDER BY subscribers DESC), '[]'::json) FROM audience_sources)
+                            ORDER BY subscribers DESC), '[]'::json) FROM audience_sources),
+    -- Daily unsubscribe / bounce counts over the last 30 days, feeding the extra
+    -- metrics in the Monthly Performance Snapshot dropdown (bounces exclude
+    -- complaints, matching the bounce definition everywhere else).
+    'dailyUnsubs',      (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('date', d, 'count', n) ORDER BY d), '[]'::json)
+                         FROM (SELECT created_at::date AS d, COUNT(*) AS n FROM campaign_unsubscribes
+                               WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) u),
+    'dailyBounces',     (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('date', d, 'count', n) ORDER BY d), '[]'::json)
+                         FROM (SELECT created_at::date AS d, COUNT(*) AS n FROM bounces
+                               WHERE type != 'complaint' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) b)
 ) AS data;
 
 -- name: get-settings
