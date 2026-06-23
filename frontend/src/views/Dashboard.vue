@@ -107,44 +107,6 @@
       </div>
     </div>
 
-    <!-- Audience health by source. -->
-    <div class="columns">
-      <div class="column is-12">
-        <div class="db-card db-card-full relative">
-          <b-loading v-if="isCountsLoading" active :is-full-page="false" />
-          <div class="db-card-head">
-            <h3 class="title is-6">Audience Health by Source</h3>
-          </div>
-          <p class="db-card-desc">New subscribers and churn (unsubscribed) by acquisition source.</p>
-          <div v-if="audienceSources.length" class="db-table-wrap">
-            <table class="table is-fullwidth db-table">
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th class="has-text-right">Subscribers</th>
-                <th class="has-text-right">New (30d)</th>
-                <th class="has-text-right">Unsub</th>
-                <th class="has-text-right">Churn</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in audienceSources" :key="s.source">
-                <td class="db-camp-name">{{ s.label }}</td>
-                <td class="has-text-right">{{ $utils.niceNumber(s.subscribers) }}</td>
-                <td class="has-text-right">{{ $utils.niceNumber(s.new30) }}</td>
-                <td class="has-text-right">{{ $utils.niceNumber(s.unsubscribed) }}</td>
-                <td class="has-text-right">
-                  <span class="db-churn" :class="churnClass(s.churn)">{{ s.churn }}%</span>
-                </td>
-              </tr>
-            </tbody>
-            </table>
-          </div>
-          <p v-else-if="!isCountsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
-        </div>
-      </div>
-    </div>
-
     <!-- Recent campaigns quick-look. -->
     <div class="db-card relative">
       <b-loading v-if="isCampaignsLoading" active :is-full-page="false" />
@@ -208,6 +170,44 @@
         </table>
       </div>
       <p v-else-if="!isCampaignsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
+    </div>
+
+    <!-- Audience health by source. -->
+    <div class="db-card relative">
+      <b-loading v-if="isCountsLoading" active :is-full-page="false" />
+      <div class="db-card-head">
+        <h3 class="title is-6">Audience Health by Source</h3>
+      </div>
+      <p class="db-card-desc">New subscribers and churn (unsubscribed) by acquisition source.</p>
+      <div v-if="audienceSources.length" class="db-table-wrap">
+        <table class="table is-fullwidth db-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th class="has-text-right">Subscribers</th>
+            <th class="has-text-right">New (30d)</th>
+            <th class="has-text-right">Unsub</th>
+            <th class="has-text-right">Churn</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in audienceSources" :key="s.source">
+            <td class="db-camp-name">{{ s.label }}</td>
+            <td class="has-text-right">{{ $utils.niceNumber(s.subscribers) }}</td>
+            <td class="has-text-right">
+              <span class="db-trend" :class="`is-${s.trend}`">
+                {{ s.trend === 'up' ? '↑' : (s.trend === 'down' ? '↓' : '–') }} {{ $utils.niceNumber(s.new30) }}
+              </span>
+            </td>
+            <td class="has-text-right">{{ $utils.niceNumber(s.unsubscribed) }}</td>
+            <td class="has-text-right">
+              <span class="db-churn" :class="churnClass(s.churn)">{{ s.churn }}%</span>
+            </td>
+          </tr>
+        </tbody>
+        </table>
+      </div>
+      <p v-else-if="!isCountsLoading" class="db-empty">{{ $t('globals.messages.emptyState') }}</p>
     </div>
 
     <p v-if="settings['app.cache_slow_queries']" class="db-note">
@@ -407,10 +407,13 @@ export default Vue.extend({
       const rows = (this.insights || {}).audienceSources || [];
       return rows.map((r) => {
         const ever = r.subscribers + r.unsubscribed;
+        // 30d-vs-prior-30d acquisition direction for the New (30d) trend arrow.
+        const dir = r.new30 > r.prev30 ? 'up' : (r.new30 < r.prev30 ? 'down' : 'flat');
         return {
           ...r,
           label: r.source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
           churn: ever ? Math.round((r.unsubscribed / ever) * 1000) / 10 : 0,
+          trend: dir,
         };
       });
     },
@@ -1092,6 +1095,24 @@ $card-sh-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 34px rgba(16, 24, 40, 0
 
   &.is-bad {
     color: #e0524d;
+  }
+}
+
+// New-subscriber trend: green ↑ when a source's last-30d signups beat the prior
+// 30 days, red ↓ when they fell, muted dash when flat (period-over-period).
+.db-trend {
+  font-weight: 600;
+
+  &.is-up {
+    color: #3fae6b;
+  }
+
+  &.is-down {
+    color: #e0524d;
+  }
+
+  &.is-flat {
+    color: $muted;
   }
 }
 

@@ -79,6 +79,8 @@ audience_sources AS (
         COALESCE(NULLIF(s.attribs->>'source', ''), 'unknown')                     AS source,
         COUNT(*) FILTER (WHERE us.subscriber_id IS NULL AND s.status = 'enabled') AS subscribers,
         COUNT(*) FILTER (WHERE s.created_at >= NOW() - INTERVAL '30 days')        AS new30,
+        COUNT(*) FILTER (WHERE s.created_at >= NOW() - INTERVAL '60 days'
+                           AND s.created_at <  NOW() - INTERVAL '30 days')        AS prev30,
         COUNT(*) FILTER (WHERE us.subscriber_id IS NOT NULL)                      AS unsubscribed
     FROM subscribers s
         LEFT JOIN unsub_subs us ON us.subscriber_id = s.id
@@ -98,7 +100,7 @@ SELECT JSON_BUILD_OBJECT(
         'prior',   (SELECT ROW_TO_JSON(t) FROM (SELECT sends, bounces, opens, clicks, unsubs FROM email_window WHERE period = 'prior') t)
     ),
     'audienceSources', (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT(
-                            'source', source, 'subscribers', subscribers, 'new30', new30, 'unsubscribed', unsubscribed)
+                            'source', source, 'subscribers', subscribers, 'new30', new30, 'prev30', prev30, 'unsubscribed', unsubscribed)
                             ORDER BY subscribers DESC), '[]'::json) FROM audience_sources)
 ) AS data;
 
