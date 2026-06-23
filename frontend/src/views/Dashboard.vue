@@ -524,7 +524,9 @@ export default Vue.extend({
         legend: { show: false },
         tooltip: {
           x: { format: 'dd MMM' },
-          y: isPct ? { formatter: (v) => `${v}%` } : undefined,
+          // Only set y for percentage metrics. Setting y to `undefined` (rather
+          // than omitting it) makes ApexCharts throw on tooltip.y.formatter.
+          ...(isPct ? { y: { formatter: (v) => `${v}%` } } : {}),
           theme: 'light',
         },
       };
