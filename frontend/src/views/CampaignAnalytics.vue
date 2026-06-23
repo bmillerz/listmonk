@@ -292,9 +292,9 @@ export default Vue.extend({
           sub: `${this.$utils.niceNumber(this.counts.bounces)} ${this.$t('globals.terms.bounces').toLowerCase()}`,
           color: C.bounces,
           bar: this.rate(this.counts.bounces),
-          // Scale the bar to the deliverability bounce gauge (acceptable < 2%, at-risk 8%)
+          // Scale the bar to the deliverability bounce gauge (acceptable < 5%, at-risk 10%)
           // so a low-but-meaningful bounce rate reads as a visible bar, not a sliver.
-          barMax: 8,
+          barMax: 12,
         },
         {
           key: 'unsub',
@@ -410,26 +410,26 @@ export default Vue.extend({
         };
       };
       return [
-        build('bounce', this.$t('analytics.bounceRate'), this.rate(this.counts.bounces), 8, [
+        build('bounce', this.$t('analytics.bounceRate'), this.rate(this.counts.bounces), 12, [
           {
-            to: 2, color: GREEN, status: 'Healthy', icon: 'healthy',
+            to: 5, color: GREEN, status: 'Healthy', icon: 'healthy',
           },
           {
-            to: 5, color: AMBER, status: 'Caution', icon: 'caution',
+            to: 10, color: AMBER, status: 'Caution', icon: 'caution',
           },
           {
-            to: 8, color: RED, status: 'At risk', icon: 'risk',
+            to: 12, color: RED, status: 'At risk', icon: 'risk',
           },
         ]),
-        build('complaint', 'Complaint rate', this.rate(this.counts.complaints), 0.5, [
+        build('complaint', 'Complaint rate', this.rate(this.counts.complaints), 0.6, [
           {
             to: 0.1, color: GREEN, status: 'Healthy', icon: 'healthy',
           },
           {
-            to: 0.3, color: AMBER, status: 'Caution', icon: 'caution',
+            to: 0.5, color: AMBER, status: 'Caution', icon: 'caution',
           },
           {
-            to: 0.5, color: RED, status: 'At risk', icon: 'risk',
+            to: 0.6, color: RED, status: 'At risk', icon: 'risk',
           },
         ]),
       ];
