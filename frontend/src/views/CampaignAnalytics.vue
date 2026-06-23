@@ -188,6 +188,10 @@ import dayjs from 'dayjs';
 import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueApexCharts from 'vue-apexcharts';
+import { deliverability } from '../constants';
+
+// Gauge top sits 20% above the at-risk line so the worst band has visible headroom.
+const gaugeMax = (risk) => Math.round(risk * 1.2 * 100) / 100;
 
 // Tonal palette: engagement metrics are shades of listmonk's primary blue;
 // bounces/unsubscribes keep semantic error/warning tones.
@@ -292,9 +296,9 @@ export default Vue.extend({
           sub: `${this.$utils.niceNumber(this.counts.bounces)} ${this.$t('globals.terms.bounces').toLowerCase()}`,
           color: C.bounces,
           bar: this.rate(this.counts.bounces),
-          // Scale the bar to the deliverability bounce gauge (acceptable < 5%, at-risk 10%)
-          // so a low-but-meaningful bounce rate reads as a visible bar, not a sliver.
-          barMax: 12,
+          // Scale the bar to the deliverability bounce gauge so a low-but-meaningful
+          // bounce rate reads as a visible bar, not a sliver.
+          barMax: gaugeMax(deliverability.bounce.risk),
         },
         {
           key: 'unsub',
@@ -410,28 +414,40 @@ export default Vue.extend({
         };
       };
       return [
-        build('bounce', this.$t('analytics.bounceRate'), this.rate(this.counts.bounces), 12, [
-          {
-            to: 5, color: GREEN, status: 'Healthy', icon: 'healthy',
-          },
-          {
-            to: 10, color: AMBER, status: 'Caution', icon: 'caution',
-          },
-          {
-            to: 12, color: RED, status: 'At risk', icon: 'risk',
-          },
-        ]),
-        build('complaint', 'Complaint rate', this.rate(this.counts.complaints), 0.6, [
-          {
-            to: 0.1, color: GREEN, status: 'Healthy', icon: 'healthy',
-          },
-          {
-            to: 0.5, color: AMBER, status: 'Caution', icon: 'caution',
-          },
-          {
-            to: 0.6, color: RED, status: 'At risk', icon: 'risk',
-          },
-        ]),
+        build(
+          'bounce',
+          this.$t('analytics.bounceRate'),
+          this.rate(this.counts.bounces),
+          gaugeMax(deliverability.bounce.risk),
+          [
+            {
+              to: deliverability.bounce.caution, color: GREEN, status: 'Healthy', icon: 'healthy',
+            },
+            {
+              to: deliverability.bounce.risk, color: AMBER, status: 'Caution', icon: 'caution',
+            },
+            {
+              to: gaugeMax(deliverability.bounce.risk), color: RED, status: 'At risk', icon: 'risk',
+            },
+          ],
+        ),
+        build(
+          'complaint',
+          'Complaint rate',
+          this.rate(this.counts.complaints),
+          gaugeMax(deliverability.complaint.risk),
+          [
+            {
+              to: deliverability.complaint.caution, color: GREEN, status: 'Healthy', icon: 'healthy',
+            },
+            {
+              to: deliverability.complaint.risk, color: AMBER, status: 'Caution', icon: 'caution',
+            },
+            {
+              to: gaugeMax(deliverability.complaint.risk), color: RED, status: 'At risk', icon: 'risk',
+            },
+          ],
+        ),
       ];
     },
   },

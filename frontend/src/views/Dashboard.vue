@@ -224,6 +224,7 @@ import dayjs from 'dayjs';
 import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueApexCharts from 'vue-apexcharts';
+import { deliverability } from '../constants';
 
 // Tonal palette shared with the campaign analytics page, so the two read as one
 // product. Each KPI card takes one accent.
@@ -235,10 +236,10 @@ const C = {
 };
 const AXIS = '#8a97a8';
 const GRID = '#eef1f5';
-// Deliverability charts use a rolling 90-day window. Below this many sends in the
-// window the rate is too thin to trust, so the bar is greyed rather than coloured
-// against the SES threshold bands — a low-volume safety valve against false alarms.
-const VOLUME_FLOOR = 500;
+// Deliverability charts use a rolling 90-day window. Below VOLUME_FLOOR sends in
+// the window the rate is too thin to trust, so the bar is greyed rather than
+// coloured against the SES threshold bands — a low-volume safety valve.
+const VOLUME_FLOOR = deliverability.volumeFloor;
 const BAR_RED = '#e0524d';
 const BAR_GREY = '#cbd5e1';
 
@@ -490,8 +491,9 @@ export default Vue.extend({
       const rates = ((this.insights && this.insights.bounceRates) || [])
         .map((m) => (m.sent ? (m.bounces / m.sent) * 100 : 0));
       const dataMax = rates.length ? Math.max(...rates) : 0;
-      // Keep both threshold lines (5% caution, 10% risk) in view; grow if a month spikes past them.
-      const yMax = Math.max(12, Math.ceil(dataMax * 1.2));
+      const t = deliverability.bounce;
+      // Keep both threshold lines (caution + risk) in view; grow if a month spikes past them.
+      const yMax = Math.max(Math.ceil(t.risk * 1.2), Math.ceil(dataMax * 1.2));
       // Always show a full trailing 12-month window, even when only a few months have data.
       const xMin = dayjs().subtract(5, 'month').startOf('month').valueOf();
       const xMax = dayjs().endOf('month').valueOf();
@@ -512,11 +514,11 @@ export default Vue.extend({
         annotations: {
           yaxis: [
             {
-              y: 5,
+              y: t.caution,
               borderColor: '#e8a13c',
               strokeDashArray: 5,
               label: {
-                text: 'Caution 5%',
+                text: `Caution ${t.caution}%`,
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,
@@ -527,11 +529,11 @@ export default Vue.extend({
               },
             },
             {
-              y: 10,
+              y: t.risk,
               borderColor: '#e0524d',
               strokeDashArray: 5,
               label: {
-                text: 'At risk 10%',
+                text: `At risk ${t.risk}%`,
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,
@@ -582,8 +584,9 @@ export default Vue.extend({
       const rates = ((this.insights && this.insights.complaintRates) || [])
         .map((m) => (m.sent ? (m.complaints / m.sent) * 100 : 0));
       const dataMax = rates.length ? Math.max(...rates) : 0;
-      // Keep both threshold lines (0.1% caution, 0.5% risk) in view; grow if a month spikes past them.
-      const yMax = Math.max(0.6, Math.ceil(dataMax * 1.2 * 100) / 100);
+      const t = deliverability.complaint;
+      // Keep both threshold lines (caution + risk) in view; grow if a month spikes past them.
+      const yMax = Math.max(Math.ceil(t.risk * 1.2 * 100) / 100, Math.ceil(dataMax * 1.2 * 100) / 100);
       const xMin = dayjs().subtract(5, 'month').startOf('month').valueOf();
       const xMax = dayjs().endOf('month').valueOf();
       return {
@@ -602,11 +605,11 @@ export default Vue.extend({
         annotations: {
           yaxis: [
             {
-              y: 0.1,
+              y: t.caution,
               borderColor: '#e8a13c',
               strokeDashArray: 5,
               label: {
-                text: 'Caution 0.1%',
+                text: `Caution ${t.caution}%`,
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,
@@ -617,11 +620,11 @@ export default Vue.extend({
               },
             },
             {
-              y: 0.5,
+              y: t.risk,
               borderColor: '#e0524d',
               strokeDashArray: 5,
               label: {
-                text: 'At risk 0.5%',
+                text: `At risk ${t.risk}%`,
                 position: 'left',
                 textAnchor: 'start',
                 offsetY: 8,

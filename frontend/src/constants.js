@@ -50,4 +50,16 @@ export const colors = Object.freeze({
   primary: '#0055d4',
 });
 
+// Deliverability thresholds (% of messages sent), aligned to AWS SES enforcement
+// bands: at/above `caution` is a warning, at/above `risk` is account-at-risk.
+// Single source of truth for the dashboard history charts AND the campaign
+// analytics gauges, so the two views can never drift apart.
+export const deliverability = Object.freeze({
+  bounce: Object.freeze({ caution: 5, risk: 10 }),
+  complaint: Object.freeze({ caution: 0.1, risk: 0.5 }),
+  // Below this many sends in the rolling window a rate is too thin to trust, so
+  // the dashboard greys the bar instead of colouring it against the bands.
+  volumeFloor: 500,
+});
+
 export const regDuration = '[0-9]+(ms|s|m|h|d)';
