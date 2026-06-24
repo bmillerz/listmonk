@@ -470,14 +470,16 @@ export default Vue.extend({
       return M[this.chartMetric] || M.views;
     },
 
-    // Daily click-to-open rate (%): clicks ÷ opens, per day, only where opens > 0
-    // (so a no-send day is a gap, not a misleading 0%).
+    // Daily click-to-open rate (%): unique clickers ÷ unique openers, per day,
+    // only where openers > 0 (so a no-open day is a gap, not a misleading 0%).
+    // Unique-based to match standard CTOR; a day can exceed 100% when clicks
+    // arrive from emails opened on an earlier day.
     ctorSeries() {
-      const opens = this.campaignViews;
+      const opens = this.makeSeries((this.insights || {}).dailyOpens);
       if (!opens || !opens.length) {
         return null;
       }
-      const clickMap = new Map((this.campaignClicks || []).map(([ms, n]) => [ms, n]));
+      const clickMap = new Map(this.makeSeries((this.insights || {}).dailyClickers) || []);
       const pts = opens
         .filter(([, o]) => o > 0)
         .map(([ms, o]) => [ms, Math.round(((clickMap.get(ms) || 0) / o) * 1000) / 10]);
@@ -524,9 +526,10 @@ export default Vue.extend({
         legend: { show: false },
         tooltip: {
           x: { format: 'dd MMM' },
-          // Only set y for percentage metrics. Setting y to `undefined` (rather
-          // than omitting it) makes ApexCharts throw on tooltip.y.formatter.
-          ...(isPct ? { y: { formatter: (v) => `${v}%` } } : {}),
+          // Always supply a valid y.formatter: omitting it lets ApexCharts'
+          // deep-merge on updateOptions retain the previous metric's formatter,
+          // so a count metric viewed after CTOR would keep showing '%'.
+          y: { formatter: (v) => (isPct ? `${v}%` : this.$utils.niceNumber(v)) },
           theme: 'light',
         },
       };

@@ -127,7 +127,17 @@ SELECT JSON_BUILD_OBJECT(
                                WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) u),
     'dailyBounces',     (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('date', d, 'count', n) ORDER BY d), '[]'::json)
                          FROM (SELECT created_at::date AS d, COUNT(*) AS n FROM bounces
-                               WHERE type != 'complaint' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) b)
+                               WHERE type != 'complaint' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) b),
+    -- Daily UNIQUE openers / clickers (distinct subscribers) over the last 30
+    -- days, feeding the click-to-open rate (clickers / openers). Unique-based to
+    -- match the industry-standard CTOR; raw event counts overstate clicks
+    -- because one reader clicks many links per open.
+    'dailyOpens',       (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('date', d, 'count', n) ORDER BY d), '[]'::json)
+                         FROM (SELECT created_at::date AS d, COUNT(DISTINCT subscriber_id) AS n FROM campaign_views
+                               WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) o),
+    'dailyClickers',    (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('date', d, 'count', n) ORDER BY d), '[]'::json)
+                         FROM (SELECT created_at::date AS d, COUNT(DISTINCT subscriber_id) AS n FROM link_clicks
+                               WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY 1) c)
 ) AS data;
 
 -- name: get-settings
