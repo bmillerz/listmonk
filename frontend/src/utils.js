@@ -54,15 +54,21 @@ export default class Utils {
   getDate = (d) => dayjs(d);
 
   // Parses an ISO timestamp to a simpler form.
-  niceDate = (stamp, showTime) => {
+  niceDate = (stamp, showTime, compact) => {
     if (!stamp) {
       return '';
     }
 
     const d = dayjs(stamp);
-    const day = this.i18n.t(`globals.days.${d.day() + 1}`);
     const month = this.i18n.t(`globals.months.${d.month() + 1}`);
-    let out = d.format(`[${day},] DD [${month}] YYYY`);
+    let out;
+    if (compact) {
+      // Drop the weekday and abbreviate the month: "30 Jun 2026".
+      out = d.format(`DD [${month.substring(0, 3)}] YYYY`);
+    } else {
+      const day = this.i18n.t(`globals.days.${d.day() + 1}`);
+      out = d.format(`[${day},] DD [${month}] YYYY`);
+    }
     if (showTime) {
       out += d.format(', HH:mm');
     }

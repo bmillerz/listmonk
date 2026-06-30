@@ -115,15 +115,15 @@
         <div class="fields timestamps" :set="stats = getCampaignStats(props.row)">
           <p>
             <label for="#">{{ $t('globals.fields.createdAt') }}</label>
-            <span>{{ $utils.niceDate(props.row.createdAt, true) }}</span>
+            <span>{{ $utils.niceDate(props.row.createdAt, true, true) }}</span>
           </p>
           <p v-if="stats.startedAt">
             <label for="#">{{ $t('campaigns.startedAt') }}</label>
-            <span>{{ $utils.niceDate(stats.startedAt, true) }}</span>
+            <span>{{ $utils.niceDate(stats.startedAt, true, true) }}</span>
           </p>
           <p v-if="isDone(props.row)">
             <label for="#">{{ $t('campaigns.ended') }}</label>
-            <span>{{ $utils.niceDate(stats.updatedAt, true) }}</span>
+            <span>{{ $utils.niceDate(stats.updatedAt, true, true) }}</span>
           </p>
           <p v-if="stats.startedAt && stats.updatedAt" class="is-capitalized">
             <label for="#"><b-icon icon="alarm" size="is-small" /></label>
@@ -136,17 +136,38 @@
         <div class="fields stats" :set="stats = getCampaignStats(props.row)">
           <p>
             <label for="#">{{ $t('campaigns.views') }}</label>
-            <span>{{ $utils.formatNumber(props.row.views) }}</span>
+            <span>
+              {{ $utils.formatNumber(props.row.views) }}
+              <span v-if="pct(props.row.views, stats.sent)" class="has-text-grey">
+                ({{ pct(props.row.views, stats.sent) }})
+              </span>
+            </span>
           </p>
           <p>
             <label for="#">{{ $t('campaigns.clicks') }}</label>
-            <span>{{ $utils.formatNumber(props.row.clicks) }}</span>
+            <span>
+              {{ $utils.formatNumber(props.row.clicks) }}
+              <span v-if="pct(props.row.clicks, stats.sent)" class="has-text-grey">
+                ({{ pct(props.row.clicks, stats.sent) }})
+              </span>
+            </span>
+          </p>
+          <p v-if="pct(props.row.clicks, props.row.views)">
+            <label for="#">{{ $t('analytics.clickToOpenRate') }}</label>
+            <span>
+              {{ $utils.formatNumber(props.row.clicks) }}
+              <span class="has-text-grey">
+                ({{ pct(props.row.clicks, props.row.views) }})
+              </span>
+            </span>
           </p>
           <p>
             <label for="#">{{ $t('campaigns.sent') }}</label>
             <span>
-              {{ $utils.formatNumber(stats.sent) }} /
-              {{ $utils.formatNumber(stats.toSend) }}
+              {{ $utils.formatNumber(stats.sent) }}
+              <span v-if="pct(stats.sent, stats.toSend)" class="has-text-grey">
+                ({{ pct(stats.sent, stats.toSend) }})
+              </span>
             </span>
           </p>
           <p>
@@ -155,6 +176,9 @@
               <router-link :to="{ name: 'bounces', query: { campaign_id: props.row.id } }">
                 {{ $utils.formatNumber(props.row.bounces) }}
               </router-link>
+              <span v-if="pct(props.row.bounces, stats.sent)" class="has-text-grey">
+                ({{ pct(props.row.bounces, stats.sent) }})
+              </span>
             </span>
           </p>
           <p v-if="stats.rate">
@@ -339,6 +363,15 @@ export default Vue.extend({
         return true;
       }
       return false;
+    },
+
+    // Percentage of num/den as a "12.3%" string, or '' when den is 0.
+    // ponytail: views/clicks are total (not unique) counts, so rates can exceed 100%.
+    pct(num, den) {
+      if (!den) {
+        return '';
+      }
+      return `${((num / den) * 100).toFixed(1)}%`;
     },
 
     highlightedRow(data) {
