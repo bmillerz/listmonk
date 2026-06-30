@@ -89,6 +89,11 @@ type CampaignMeta struct {
 	Clicks     int `db:"clicks" json:"clicks"`
 	Bounces    int `db:"bounces" json:"bounces"`
 
+	// Unique openers/clickers (distinct subscribers) for rate calculations,
+	// as opposed to the total event counts in Views/Clicks above.
+	UniqueViews  int `db:"unique_views" json:"unique_views"`
+	UniqueClicks int `db:"unique_clicks" json:"unique_clicks"`
+
 	// This is a list of {list_id, name} pairs unlike Subscriber.Lists[]
 	// because lists can be deleted after a campaign is finished, resulting
 	// in null lists data to be returned. For that reason, campaign_lists maintains
@@ -129,6 +134,8 @@ func (camps Campaigns) LoadStats(stmt *sqlx.Stmt) error {
 			camps[i].Views = c.Views
 			camps[i].Clicks = c.Clicks
 			camps[i].Bounces = c.Bounces
+			camps[i].UniqueViews = c.UniqueViews
+			camps[i].UniqueClicks = c.UniqueClicks
 			camps[i].Media = c.Media
 		}
 	}

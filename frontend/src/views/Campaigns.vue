@@ -138,8 +138,8 @@
             <label for="#">{{ $t('campaigns.views') }}</label>
             <span>
               {{ $utils.formatNumber(props.row.views) }}
-              <span v-if="pct(props.row.views, stats.sent)" class="has-text-grey">
-                ({{ pct(props.row.views, stats.sent) }})
+              <span v-if="pct(props.row.uniqueViews, stats.sent)" class="has-text-grey">
+                ({{ pct(props.row.uniqueViews, stats.sent) }})
               </span>
             </span>
           </p>
@@ -147,17 +147,17 @@
             <label for="#">{{ $t('campaigns.clicks') }}</label>
             <span>
               {{ $utils.formatNumber(props.row.clicks) }}
-              <span v-if="pct(props.row.clicks, stats.sent)" class="has-text-grey">
-                ({{ pct(props.row.clicks, stats.sent) }})
+              <span v-if="pct(props.row.uniqueClicks, stats.sent)" class="has-text-grey">
+                ({{ pct(props.row.uniqueClicks, stats.sent) }})
               </span>
             </span>
           </p>
-          <p v-if="pct(props.row.clicks, props.row.views)">
+          <p v-if="pct(props.row.uniqueClicks, props.row.uniqueViews)">
             <label for="#">{{ $t('analytics.clickToOpenRate') }}</label>
             <span>
               {{ $utils.formatNumber(props.row.clicks) }}
               <span class="has-text-grey">
-                ({{ pct(props.row.clicks, props.row.views) }})
+                ({{ pct(props.row.uniqueClicks, props.row.uniqueViews) }})
               </span>
             </span>
           </p>

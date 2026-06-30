@@ -121,12 +121,16 @@ media AS (
     WHERE campaign_id = ANY($1) GROUP BY campaign_id
 ),
 views AS (
-    SELECT campaign_id, COUNT(campaign_id) as num FROM campaign_views
+    -- num = total open events; uniq = unique openers (matches the analytics page).
+    -- ponytail: uniq collapses to 0 when privacy.individual_tracking is off (subscriber_id
+    -- is null then). The analytics page falls back to totals in that case via prepareQueries;
+    -- replicate that conditional here if a tracking-off instance needs list rates.
+    SELECT campaign_id, COUNT(campaign_id) as num, COUNT(DISTINCT subscriber_id) AS uniq FROM campaign_views
     WHERE campaign_id = ANY($1)
     GROUP BY campaign_id
 ),
 clicks AS (
-    SELECT campaign_id, COUNT(campaign_id) as num FROM link_clicks
+    SELECT campaign_id, COUNT(campaign_id) as num, COUNT(DISTINCT subscriber_id) AS uniq FROM link_clicks
     WHERE campaign_id = ANY($1)
     GROUP BY campaign_id
 ),
@@ -137,7 +141,9 @@ bounces AS (
 )
 SELECT id as campaign_id,
     COALESCE(v.num, 0) AS views,
+    COALESCE(v.uniq, 0) AS unique_views,
     COALESCE(c.num, 0) AS clicks,
+    COALESCE(c.uniq, 0) AS unique_clicks,
     COALESCE(b.num, 0) AS bounces,
     COALESCE(l.lists, '[]') AS lists,
     COALESCE(m.media, '[]') AS media
