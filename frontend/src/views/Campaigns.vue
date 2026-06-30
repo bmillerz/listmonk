@@ -371,7 +371,8 @@ export default Vue.extend({
       if (!den) {
         return '';
       }
-      return `${((num / den) * 100).toFixed(1)}%`;
+      // Strip a trailing ".0" so 100.0% reads 100% but 45.6% stays 45.6%.
+      return `${parseFloat(((num / den) * 100).toFixed(1))}%`;
     },
 
     highlightedRow(data) {
