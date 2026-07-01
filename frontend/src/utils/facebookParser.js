@@ -33,7 +33,10 @@ const HEADER_RE = /^(.+?)\s+\(https:\/\/www\.facebook\.com\/groups\/\d+\/user\/\
 const REQUESTED_RE = /^requested/i;
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const LIVES_RE = /^lives in\s+(.+?)(?:\s+\(https?:\/\/|$)/i;
-const VISITED_RE = /visited it before\?\s*(.*)$/i;
+// Answer to the "have you visited the site" membership question. Matches both the
+// old wording ("…visited it before?") and the new one ("…visited our website to see
+// our free itineraries? (irelandtipsfortravellers.com)"); the answer follows inline.
+const VISITED_RE = /visited (?:it before\?|our website.*?\(irelandtipsfortravellers\.com\))\s*(.*)$/i;
 
 export const parseFacebookText = (text, now = new Date()) => {
   const lines = String(text).replace(/\r\n/g, '\n').split('\n');

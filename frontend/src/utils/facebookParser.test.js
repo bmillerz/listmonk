@@ -112,6 +112,17 @@ describe('parseFacebookText', () => {
     expect(r.visitedBefore).toBe('Maybe');
   });
 
+  it('extracts the visited answer from the new website-question wording', () => {
+    const block = [
+      'Test Person (https://www.facebook.com/groups/1/user/2/)',
+      'Requested3 hours ago',
+      'mailto:new@example.com',
+      'Have you visited our website to see our free itineraries? (irelandtipsfortravellers.com) Yes, love it',
+    ].join('\n');
+    const r = parseFacebookText(block, NOW2).rows[0];
+    expect(r.visitedBefore).toBe('Yes, love it');
+  });
+
   it('deduplicates by email within one paste', () => {
     const dup = [
       'A One (https://www.facebook.com/groups/1/user/2/)',
