@@ -138,6 +138,71 @@ describe('parseFacebookText', () => {
   });
 });
 
+describe('parseFacebookText — new paste layout (no /user/ URLs, Q&A on separate lines)', () => {
+  const NEW = [
+    'Sittle Sim',
+    'Requested',
+    '9 hours ago',
+    '25 groups',
+    'Joined Facebook',
+    '17 years ago',
+    'What is the capital city of Ireland?',
+    'Dublin',
+    "Enter your email (optional). You'll receive Ireland trip tips - best routes, hidden spots & planning advice.",
+    's.sittle@yahoo.com',
+    'Have you visited our website to see our free itineraries & discount codes? (irelandtipsfortravellers.com)',
+    'Not yet',
+    'Do you agree to the group rules from the admin?',
+    'No response',
+    'Tim N Deedee Reich',
+    'Requested',
+    '12 hours ago',
+    '39 groups',
+    'Joined Facebook',
+    '7 years ago',
+    'Lives in Happy Valley, Oregon',
+    'What is the capital city of Ireland?',
+    'Dublin',
+    "Enter your email (optional). You'll receive Ireland trip tips - best routes, hidden spots & planning advice.",
+    'Nudawn10@gmail.com',
+    'Have you visited our website to see our free itineraries & discount codes? (irelandtipsfortravellers.com)',
+    'Not yet',
+    'Do you agree to the group rules from the admin?',
+    'I agree',
+    'Damian Lucius Black',
+    'Invited by Jennifer Frankford',
+    'a day ago',
+    '86 groups',
+    'Joined Facebook',
+    '16 years ago',
+    'What is the capital city of Ireland?',
+    'dublin',
+    'We run irelandtipsfortravellers.com. Have you visited it before?',
+    'no',
+    'Please enter your email here to receive our bi weekly newsletter. We promise to pack it with value and never send you spam.',
+    'black_ace_productions@hotmail.com',
+    'Do you agree to the group rules from the admin?',
+    'I agree',
+  ].join('\n');
+
+  const out = parseFacebookText(NEW, new Date('2026-06-21T12:00:00.000Z'));
+
+  it('detects every person, including "Invited by" ones', () => {
+    expect(out.total).toBe(3);
+  });
+
+  it('extracts emails, names, request time and answers from the new layout', () => {
+    expect(out.rows.map((r) => r.email)).toEqual([
+      's.sittle@yahoo.com', 'nudawn10@gmail.com', 'black_ace_productions@hotmail.com',
+    ]);
+    expect(out.rows[0].firstName).toBe('Sittle');
+    expect(out.rows[0].signupDate).toBe('2026-06-21T03:00:00.000Z');
+    expect(out.rows[0].visitedBefore).toBe('Not yet');
+    expect(out.rows[1].location).toBe('Happy Valley, Oregon');
+    expect(out.rows[2].visitedBefore).toBe('no');
+  });
+});
+
 describe('toImportCsv', () => {
   it('builds a header + row with escaped JSON attributes', () => {
     const rows = [{

@@ -30,7 +30,12 @@ export const splitName = (fullName) => {
 };
 
 const HEADER_RE = /^(.+?)\s+\(https:\/\/www\.facebook\.com\/groups\/\d+\/user\/\d+\/\)\s*$/;
-const REQUESTED_RE = /^requested/i;
+// Each person is anchored by a "Requested…" or "Invited by…" line. The name is the
+// nearest preceding non-empty line. This works for both the old paste layout (name
+// carries a /user/ URL, time glued as "Requested6 hours ago") and the new one
+// (plain name, "Requested" and the time on separate lines).
+const ANCHOR_RE = /^(requested|invited by)/i;
+const AGO_RE = /(?:a|an|\d+)\s*(?:minute|hour|day|week|month|year)s?\s*ago|yesterday/i;
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const LIVES_RE = /^lives in\s+(.+?)(?:\s+\(https?:\/\/|$)/i;
 // Answer to the "have you visited the site" membership question. Matches both the
@@ -41,18 +46,18 @@ const VISITED_RE = /visited (?:it before\?|our website.*?\(irelandtipsfortravell
 export const parseFacebookText = (text, now = new Date()) => {
   const lines = String(text).replace(/\r\n/g, '\n').split('\n');
 
-  // A person header is a "Name (…/user/…)" line whose next non-empty line starts
-  // with "Requested". Employer lines ("Worked at … (…/user/…)") match the URL
-  // pattern too, but are never followed by "Requested", so they are excluded.
+  // Find each person's name line: the nearest non-empty line above a
+  // "Requested…"/"Invited by…" anchor. Employer/bio lines never precede an
+  // anchor, so they are excluded.
   const headerIdx = [];
   for (let i = 0; i < lines.length; i += 1) {
-    if (HEADER_RE.test(lines[i].trim())) {
-      let j = i + 1;
-      while (j < lines.length && lines[j].trim() === '') {
-        j += 1;
+    if (ANCHOR_RE.test(lines[i].trim())) {
+      let j = i - 1;
+      while (j >= 0 && lines[j].trim() === '') {
+        j -= 1;
       }
-      if (j < lines.length && REQUESTED_RE.test(lines[j].trim())) {
-        headerIdx.push(i);
+      if (j >= 0 && (headerIdx.length === 0 || headerIdx[headerIdx.length - 1] !== j)) {
+        headerIdx.push(j);
       }
     }
   }
@@ -67,7 +72,9 @@ export const parseFacebookText = (text, now = new Date()) => {
     const end = h + 1 < headerIdx.length ? headerIdx[h + 1] : lines.length;
     const block = lines.slice(start, end);
 
-    const name = block[0].trim().match(HEADER_RE)[1].trim();
+    const rawName = block[0].trim();
+    const hm = rawName.match(HEADER_RE);
+    const name = hm ? hm[1].trim() : rawName;
 
     let email = '';
     for (let k = 0; k < block.length; k += 1) {
@@ -84,8 +91,11 @@ export const parseFacebookText = (text, now = new Date()) => {
     } else {
       seen.add(email);
 
-      const reqLine = block.find((l) => REQUESTED_RE.test(l.trim())) || '';
-      const signupDate = parseRelativeTime(reqLine, now).toISOString();
+      // The request time is the first "…ago"/"yesterday" line — glued to
+      // "Requested" in the old layout, on its own line in the new one. Later
+      // "Joined Facebook N years ago" lines come after it, so first wins.
+      const timeLine = block.find((l) => AGO_RE.test(l)) || '';
+      const signupDate = parseRelativeTime(timeLine, now).toISOString();
 
       let location = '';
       for (let k = 0; k < block.length; k += 1) {
@@ -100,7 +110,11 @@ export const parseFacebookText = (text, now = new Date()) => {
       for (let k = 0; k < block.length; k += 1) {
         const vm = block[k].match(VISITED_RE);
         if (vm) {
+          // Answer is inline in the old layout; on the next non-empty line in the new one.
           visitedBefore = vm[1].trim();
+          for (let n = k + 1; !visitedBefore && n < block.length; n += 1) {
+            visitedBefore = block[n].trim();
+          }
           break;
         }
       }
